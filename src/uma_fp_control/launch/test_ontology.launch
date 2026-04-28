@@ -1,0 +1,64 @@
+<launch>
+    <arg name="prefix_auto" default="alice"/>
+    <arg name="prefix_teleop" default="bob"/>
+    <arg name="kp" default="1.0"/>
+    <arg name="ki" default=""/>
+    <arg name="kd" default=""/>
+    <arg name="kf" default=""/>
+    <arg name="p_estimado" default=""/>
+    <arg name="tool_length" default="0.30832"/>
+    <arg name="type" default=""/>
+    <arg name="base" default="90.0"/>
+    <arg name="shoulder" default="-90.0"/>
+    <arg name="elbow" default="90.0"/>
+    <arg name="wrist1" default="-90.0"/>
+    <arg name="wrist2" default="-90.0"/>
+    <arg name="wrist3" default="0.0"/>
+    <!-- COORDINATOR -->
+    <!-- <param name="robot_names" type="string" value="$(arg prefix_auto),$(arg prefix_teleop)"/>
+    <node pkg="uma_fp_control" type="coordinatorTeleop" name="coordinator_node" output="screen"/>-->
+    <!-- ROBOT ALICE -->
+    <group ns="$(arg prefix_auto)">
+        <remap from="/ur_hardware_interface/script_command" to="/$(arg prefix_auto)/ur_hardware_interface/script_command" />
+        <node name="MyControlForce" pkg="uma_fp_control" type="forceControl" output="screen">
+            <param name="prefix" value="$(arg prefix_auto)" type="str"/>
+            <param name="kp" value="$(arg kp)"  type="double"/>
+            <param name="ki" value="0.0" type="double"/>
+            <param name="kd" value="0" type="double"/>
+            <param name="kf" value="0.175" type="double"/>
+            <param name="p_estimado" value="0.2" type="double"/>
+            <param name="tool_length" value="$(arg tool_length)" type="double"/>
+            <param name="type" value="1" type="int"/>
+            <param name="base" value="$(arg base)"  type="double"/>
+            <param name="shoulder" value="$(arg shoulder)"  type="double"/>
+            <param name="elbow" value="$(arg elbow)"  type="double"/>
+            <param name="wrist1" value="$(arg wrist1)"  type="double"/>
+            <param name="wrist2" value="$(arg wrist2)"  type="double"/>
+            <param name="wrist3" value="$(arg wrist3)"  type="double"/>
+        </node>
+    </group>
+    <!-- ROBOT BOB -->
+    <group ns="$(arg prefix_teleop)">
+        <remap from="/ur_hardware_interface/script_command" to="/$(arg prefix_teleop)/ur_hardware_interface/script_command" />
+        <node name="MyControlForce" pkg="uma_fp_control" type="forceControl" output="screen">
+            <param name="prefix" value="$(arg prefix_teleop)" type="str"/>
+            <param name="kp" value="$(arg kp)"  type="double"/>
+            <param name="ki" value="0.0" type="double"/>
+            <param name="kd" value="0" type="double"/>
+            <param name="kf" value="0.0" type="double"/>
+            <param name="p_estimado" value="0.2" type="double"/>
+            <param name="tool_length" value="$(arg tool_length)" type="double"/>
+            <param name="type" value="1" type="int"/>
+            <param name="base" value="-90"  type="double"/>
+            <param name="shoulder" value="-90"  type="double"/>
+            <param name="elbow" value="-90"  type="double"/>
+            <param name="wrist1" value="-90"  type="double"/>
+            <param name="wrist2" value="90"  type="double"/>
+            <param name="wrist3" value="$(arg wrist3)"  type="double"/>
+        </node>
+    </group>
+    <!-- QUANTITATIVE TO QUALITATIVE -->
+    <!--<node pkg="uma_quali2quanti" type="evaluatorProperties" name="evaluatorProperties" output="screen">
+        <param name="robot_names" type="string" value="$(arg prefix_auto),$(arg prefix_teleop)"/>
+    </node> -->
+</launch>

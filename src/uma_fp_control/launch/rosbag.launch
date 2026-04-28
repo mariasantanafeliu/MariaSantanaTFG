@@ -1,0 +1,19 @@
+<launch>
+  <!-- Grabación de /alice/polar/current -->
+  <node name="record_polar_current" pkg="rosbag" type="record" output="screen" args="--duration=15s -O /home/alvaro/Music/current_polar /alice/polar/current" />
+
+  <!-- Grabación de /alice/polar/delta -->
+  <node name="record_polar_delta" pkg="rosbag" type="record" output="screen" args="--duration=15s -O /home/alvaro/Music/delta_polar /alice/polar/delta" />
+
+  <!-- Grabación de /alice/velocity_topic -->
+  <node name="record_velocity" pkg="rosbag" type="record" output="screen" args="--duration=15s -O /home/alvaro/Music/velocity /alice/velocity_topic" />
+
+  <!-- Grabación de /alice/pose_topic -->
+  <node name="record_pose" pkg="rosbag" type="record" output="screen" args="--duration=15s -O /home/alvaro/Music/tip_tool_position /alice/pose_topic" />
+
+  <!-- Grabación de /alice/effectorFinal_topic -->
+  <node name="record_effector" pkg="rosbag" type="record" output="screen" args="--duration=15s -O /home/alvaro/Music/end_effector_position /alice/effectorFinal_topic" />
+
+  <!-- Grabación de /alice/fulcrum -->
+  <node name="record_fulcrum" pkg="rosbag" type="record" output="screen" args="--duration=15s -O /home/alvaro/Music/fulcrum /alice/fulcrum" />
+</launch>

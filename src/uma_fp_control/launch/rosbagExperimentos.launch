@@ -1,0 +1,53 @@
+<launch>
+    <arg name = "name" default="test_experimento"/>
+    <arg name = "path" default="/home/labrob/experimentos/"/>
+
+    <node name="rosbag_record_all" pkg="rosbag" type="record" output="screen"
+        args="-O $(arg path)$(arg name).bag
+        
+                /tf
+                /tf_static
+                /coordinator/goal_position
+                /coordinator/fulcrum_position
+                /joint_states
+                /rosout
+
+                
+                /auto/pose_topic
+                /auto/effectorFinal_topic
+                /auto/velocity_topic
+                /auto/effectorFinal_force
+                /auto/robotbase_force
+                /auto/fulcrum
+                /auto/tfg/tissue_force
+
+                /darel/pose_topic
+                /darel/effectorFinal_topic
+                /darel/abdomen_force_topic
+                /darel/abdomen_effectorForce_topic
+
+                /ur3e/rtde/force
+                "
+    />
+    <!--        /tf : esqueleto en movimiento (mov eslabones irl)
+                /tf_static : esqueleto fijo 
+                /coordinator/goal_position : punto objetivo pedido al robot
+                /coordinator/fulcrum_position : posicion real del agujero (RCM real) (dif con el otro = error fulcro)
+                /joint_states: para verlo entero en vriz y no solo los ejes moviendose
+                /rosout: lo que va saliendo en la consola
+                
+                /auto/pose_topic : matriz de trasformacion del TCP (para deformacion)
+                /auto/effectorFinal_topic : posicion efector final
+                /auto/velocity_topic : velocidad (para viscocidad)
+                /auto/effectorFinal_force : fuerza total (fsensor) (la que el algoritmo debe intentar predecir)
+                /auto/robotbase_force : fuerza base robot (por si calculo fuerza punta falla)
+                /auto/fulcrum : posicion donde el robot cree que esta el agujero (RCM estimado)
+                /auto/tissue_force : fuerza real organo (sensor mesa)
+
+                /darel/pose_topic : posicion del abdomen
+                /darel/abdomen_force_topic : fuerza real abdomen (Objetivo: Ftotal - Festimada == Forgano)
+                /darel/abdomen_effectorForce_topic : 
+
+                /ur3e/rtde/force : datos crudos del sensor darel (por seguridad)
+    -->
+</launch>

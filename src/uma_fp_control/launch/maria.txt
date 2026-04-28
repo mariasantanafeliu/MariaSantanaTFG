@@ -1,0 +1,9 @@
+roslaunch uma_ur_launch two_robot.launch 
+
+roslaunch ur3e_moveit_config move_group.launch 
+
+PARA CALIBRAR:
+roslaunch uma_fp_control calibration.launch 
+
+PARA MOVERNOS:
+roslaunch uma_fp_control tfg.launch

@@ -1,0 +1,45 @@
+<launch>
+    <arg name="prefix_auto" default="auto"/>
+    <arg name="prefix_teleop" default="teleop"/>
+    <arg name="kp" default="1.0"/>
+    <arg name="ki" default=""/>
+    <arg name="kd" default=""/>
+    <arg name="kf" default=""/>
+    <arg name="p_estimado" default=""/>
+    <arg name="tool_length" default="0.30832"/>
+    <arg name="type" default=""/>
+    <arg name="sensor_ip" default="192.168.1.13"/>
+    <arg name="base" default="90.0"/>
+    <arg name="shoulder" default="-90.0"/>
+    <arg name="elbow" default="-90.0"/>
+    <arg name="wrist1" default="-90.0"/>
+    <arg name="wrist2" default="90.0"/>
+    <arg name="wrist3" default="0.0"/>
+    <!-- COORDINATOR -->
+        <!-- Lanzar el nodo coordinator -->
+    <!-- <node pkg="uma_fp_control" type="coordinatorONE" name="coordinator_node" output="screen"/> -->
+    <param name="robot_names" type="string" value="$(arg prefix_auto)"/>
+    <node pkg="uma_fp_control" type="coordinator_oneTeleop" name="coordinator_teleop" output="screen"/>
+
+    <!-- <node name="MyControl" pkg="uma_fp_control" type="control" output="screen"> -->
+    <group ns="$(arg prefix_auto)">
+        <remap from="/ur_hardware_interface/script_command" to="/$(arg prefix_auto)/ur_hardware_interface/script_command" />
+        <node name="teleoperator" pkg="uma_fp_control" type="controlTeleop" output="screen">
+            <param name="prefix" value="$(arg prefix_auto)" type="str"/>
+            <param name="kp" value="$(arg kp)"  type="double"/>
+            <param name="ki" value="0.0" type="double"/>
+            <param name="kd" value="0" type="double"/>
+            <param name="kf" value="0.0" type="double"/>
+            <param name="p_estimado" value="0.209" type="double"/>
+            <param name="tool_length" value="0.34" type="double"/>
+            <param name="type" value="1" type="int"/>
+            <param name="sensor_ip" value="192.168.1.1" type="str"/>
+            <param name="base" value="$(arg base)"  type="double"/>
+            <param name="shoulder" value="$(arg shoulder)"  type="double"/>
+            <param name="elbow" value="$(arg elbow)"  type="double"/>
+            <param name="wrist1" value="$(arg wrist1)"  type="double"/>
+            <param name="wrist2" value="$(arg wrist2)"  type="double"/>
+            <param name="wrist3" value="$(arg wrist3)"  type="double"/>
+        </node>
+    </group>
+</launch>

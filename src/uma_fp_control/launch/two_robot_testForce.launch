@@ -1,0 +1,48 @@
+<launch>
+    <arg name="prefix_auto" default="auto"/>
+    <arg name="prefix_teleop" default="darel"/>
+    <arg name="kp" default="1.0"/>
+    <arg name="ki" default=""/>
+    <arg name="kd" default=""/>
+    <arg name="kf" default=""/>
+    <arg name="p_estimado" default=""/>
+    <arg name="tool_length" default="0.3417"/>
+    <arg name="type" default=""/>
+    <arg name="sensor_ip" default="192.168.1.13"/>
+    <arg name="base" default="11.27"/>
+    <arg name="shoulder" default="-61.32"/>
+    <arg name="elbow" default="62.05"/>
+    <arg name="wrist1" default="-97.06"/>
+    <arg name="wrist2" default="-91.97"/>
+    <arg name="wrist3" default="88"/>
+    <!-- COORDINATOR -->
+    <param name="robot_names" type="string" value="$(arg prefix_auto),$(arg prefix_teleop)"/>
+    <param name="transform_matrix_csv_path" value="$(find uma_fp_control)/config/auto2darel.csv"/>
+    <node pkg="uma_fp_control" type="coordinatorForce" name="coordinator_node" output="screen"/>
+    <!-- ROBOT ALICE -->
+    <group ns="$(arg prefix_auto)">
+        <remap from="/ur_hardware_interface/script_command" to="/$(arg prefix_auto)/ur_hardware_interface/script_command" />
+        <node name="testForces" pkg="uma_fp_control" type="testForces" output="screen">
+            <param name="prefix" value="$(arg prefix_auto)" type="str"/>
+            <param name="p_estimado" value="0.1" type="double"/>
+            <param name="tool_length" value="$(arg tool_length)" type="double"/>
+            <param name="type" value="1" type="int"/>
+            <param name="sensor_ip" value="$(arg sensor_ip)" type="str"/>
+            <param name="base" value="$(arg base)"  type="double"/>
+            <param name="shoulder" value="$(arg shoulder)"  type="double"/>
+            <param name="elbow" value="$(arg elbow)"  type="double"/>
+            <param name="wrist1" value="$(arg wrist1)"  type="double"/>
+            <param name="wrist2" value="$(arg wrist2)"  type="double"/>
+            <param name="wrist3" value="$(arg wrist3)"  type="double"/>
+        </node>
+    </group>
+    <!-- ROBOT BOB -->
+    <group ns="$(arg prefix_teleop)">
+        <remap from="/ur_hardware_interface/script_command" to="/$(arg prefix_teleop)/ur_hardware_interface/script_command" />
+        <node name="abdomenForces" pkg="uma_fp_control" type="abdomenForces" output="screen">
+            <param name="prefix" value="$(arg prefix_teleop)" type="str"/>
+            <param name="tool_length" value="0" type="double"/>
+            <param name="type" value="3" type="int"/>
+        </node>
+    </group>
+</launch>

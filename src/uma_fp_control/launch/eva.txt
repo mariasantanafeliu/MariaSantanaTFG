@@ -1,0 +1,8 @@
+#Lanzar comunicaciones entre ambos robots - se abre rviz
+roslaunch uma_ur_launch ex-ur3-combi2.launch
+
+#tarda un rato - tiene que poner algo en verde tipo ready
+roslaunch ur3_moveit_config move_group.launch 
+
+PARA MOVERNOS:
+roslaunch uma_fp_control camera_vacuum.launch

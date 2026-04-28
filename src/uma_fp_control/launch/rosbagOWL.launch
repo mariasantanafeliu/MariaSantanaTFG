@@ -1,0 +1,42 @@
+<launch>
+  <!-- Grabación de /alice/velocity_topic -->
+  <node name="record_velocity" pkg="rosbag" type="record" output="screen" args="--duration=30s -O /home/alvaro/Music/velocity /alice/velocity_topic" />
+
+  <!-- Grabación de /alice/pose_topic -->
+  <node name="record_pose" pkg="rosbag" type="record" output="screen" args="--duration=30s -O /home/alvaro/Music/tip_tool_position /alice/pose_topic" />
+
+  <!-- Grabación de /alice/effectorFinal_topic -->
+  <node name="record_effector" pkg="rosbag" type="record" output="screen" args="--duration=30s -O /home/alvaro/Music/end_effector_position /alice/effectorFinal_topic" />
+
+  <!-- Grabación de la pinza-->
+  <node name="record_gripper" pkg="rosbag" type="record" output="screen" args="--duration=30s -O /home/alvaro/Music/gripper /gripper_r" />
+  <node name="record_force" pkg="rosbag" type="record" output="screen" args="--duration=30s -O /home/alvaro/Music/force /force_r" />
+
+  <!-- Grabación de /bob/velocity_topic -->
+  <node name="record_velocityB" pkg="rosbag" type="record" output="screen" args="--duration=30s -O /home/alvaro/Music/velocityB /bob/velocity_topic" />
+
+  <!-- Grabación de /bob/pose_topic -->
+  <node name="record_poseB" pkg="rosbag" type="record" output="screen" args="--duration=30s -O /home/alvaro/Music/tip_tool_positionB /bob/pose_topic" />
+
+  <!-- Grabación de /bob/effectorFinal_topic -->
+  <node name="record_effectorB" pkg="rosbag" type="record" output="screen" args="--duration=30s -O /home/alvaro/Music/end_effector_positionB /bob/effectorFinal_topic" />
+
+  <!-- Grabación de la pinza bob-->
+  <node name="record_gripperN" pkg="rosbag" type="record" output="screen" args="--duration=30s -O /home/alvaro/Music/gripperB /gripper_l" />
+  <node name="record_forceB" pkg="rosbag" type="record" output="screen" args="--duration=30s -O /home/alvaro/Music/forceB /force_l" />
+
+  <!-- Grabación de la phase-->
+  <node name="record_phase" pkg="rosbag" type="record" output="screen" args="--duration=30s -O /home/alvaro/Music/phase /phase" />
+
+  <!-- Grabación de current area-->
+  <node name="record_area" pkg="rosbag" type="record" output="screen" args="--duration=30s -O /home/alvaro/Music/current_area /current_area" />
+
+  <!-- Grabación de availableInsertion-->
+  <node name="record_availableInsertion" pkg="rosbag" type="record" output="screen" args="--duration=30s -O /home/alvaro/Music/availableInsertion /availableIns" />
+
+  <!-- Grabación de availableExtraction-->
+  <node name="record_availableExtraction" pkg="rosbag" type="record" output="screen" args="--duration=30s -O /home/alvaro/Music/availableExtraction /availableExt" />
+
+  <!-- Grabación de finished-->
+  <node name="record_finished" pkg="rosbag" type="record" output="screen" args="--duration=30s -O /home/alvaro/Music/finished /finish" />
+</launch>
