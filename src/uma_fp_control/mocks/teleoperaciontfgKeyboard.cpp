@@ -49,9 +49,9 @@ int main(int argc, char **argv)
                 ROS_INFO("\r\n Z - 5mm \r\n");
                 break;  
             case '7':
-                msg.x = -0.018;
-                msg.y = +0.018;
-                msg.z = 0.014;
+                msg.x = -0.0318;
+                msg.y = -0.0318;
+                msg.z = -0.01;
                 ROS_INFO("\r\n Diagonal X Y \r\n");
                 break;  
             case '8':
