@@ -139,7 +139,7 @@ int main(int argc, char **argv){
     ur.set_tcp(TCP);
     ros::Duration(1).sleep();
     robot.computeRobotCinematic(tool_length);
-    std::cout << "vamos al while" << std::endl;
+    std::cout << "vamos al while obstaculo" << std::endl;
     double i = 0.0;
     while (ros::ok()){
         robot.computeRobotCinematic(tool_length);

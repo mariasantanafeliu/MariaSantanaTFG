@@ -48,7 +48,7 @@ public:
     fulcrum_pub_ = nh_.advertise<geometry_msgs::Point>("coordinator/fulcrum_position", 1000);
   }
   void cmd_haptic(const geometry_msgs::Point& msg){
-    //ROS_INFO_STREAM("-----entro cmd_haptic----");
+    ROS_INFO_STREAM("-----entro cmd_haptic----");
     /*stitch_.x = T1_(0,3) + msg.x;
     stitch_.y = T1_(1,3) + msg.y;
     stitch_.z = T1_(2,3) + msg.z;*/
@@ -58,11 +58,11 @@ public:
     //if (abs(msg.z)<0.0255) camera_Pdes_ << msg.x,msg.y,-0.026,1;
     //std::cout << "camera_Pdes_=[" << camera_Pdes_ << "]" << std::endl;
     Eigen::Vector4d camera_Pdes_transformed = T_transform_ * T2_ * camera_Pdes_;
-    //std::cout << "camera_Pdes_transformed_1=[" << camera_Pdes_transformed << "]" << std::endl;
+    std::cout << "camera_Pdes_=[" << camera_Pdes_ << "]" << std::endl;
     //EVA AQUI MATRIZ CORRECIONES
-    Tc_ << 1, 0, 0, -0.003,//0.012,//101-77,
-            0, 1, 0, -0.016,//-0.009,//445-454,
-            0, 0, 1,  -0.004,//-259-(-229), -0.045 
+    Tc_ << 1, 0, 0, 0,//-0.003,//0.012,//101-77,
+            0, 1, 0, 0,//-0.016,//-0.009,//445-454,
+            0, 0, 1, 0,// -0.004,//-259-(-229), -0.045 
             0, 0, 0, 1;
     camera_Pdes_transformed = Tc_ * camera_Pdes_;//camera_Pdes_transformed;
     stitch_.x = camera_Pdes_transformed(0);

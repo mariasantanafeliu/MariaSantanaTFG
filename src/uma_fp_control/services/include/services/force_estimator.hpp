@@ -1,8 +1,11 @@
 #pragma once
 
 #include <ros/ros.h>
+#include <ros/package.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <std_srvs/Trigger.h>
+#include <mutex>
+
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
@@ -20,10 +23,10 @@ using Vector5d  = Eigen::Matrix<double,5,1>;
 using Matrix5d  = Eigen::Matrix<double,5,5>;
 
 // Sincronización 
-using SyncPolicy3 = message_filters::sync_policies::ApproximateTime<
+/*using SyncPolicy3 = message_filters::sync_policies::ApproximateTime<
     std_msgs::Float64MultiArray,   
     std_msgs::Float64MultiArray,   
-    std_msgs::Float64MultiArray>;  
+    std_msgs::Float64MultiArray>;  */
 
 // Filtro 
 struct IIRFilter {
@@ -70,10 +73,9 @@ public:
 
 private:
     // Callbacks 
-    void syncCallback(const std_msgs::Float64MultiArray::ConstPtr& pose_msg,
-                      const std_msgs::Float64MultiArray::ConstPtr& robot_force_msg,
-                      const std_msgs::Float64MultiArray::ConstPtr& tissue_force_msg);
-
+    void poseCb(const std_msgs::Float64MultiArray::ConstPtr& pose_msg);
+    void robotForceCb(const std_msgs::Float64MultiArray::ConstPtr& msg);
+    void tissueForceCb(const std_msgs::Float64MultiArray::ConstPtr& msg);
     // Abdomen (solo para visualización)
     void abdomenCb(const std_msgs::Float64MultiArray::ConstPtr& msg);
 
@@ -141,6 +143,9 @@ private:
     Vector5d thX_, thY_, thZ_;
     Matrix5d PX_,  PY_,  PZ_;
 
+    // Theta del modelo offline
+    Vector5d thX_off_, thY_off_, thZ_off_;
+
     // Estado interno del bucle ARX 
     bool    en_cont_  = false;
     double  pto_X_    = 0, pto_Y_ = 0, prof_mx_ = 0;
@@ -153,12 +158,17 @@ private:
     std::array<double,3> Fk_1_   = {0,0,0};
     std::array<double,3> Fk_2_   = {0,0,0};
 
+    std::array<double,3> Fk_1_off_   = {0,0,0};
+    std::array<double,3> Fk_2_off_   = {0,0,0};
+
     // Última posición filtrada (para detección de movimiento en taraje)
     std::array<double,3> pos_filt_prev_ = {0,0,0};
 
-    // Última fuerza abdomen recibida (callback separado)
-    Vector3d F_abdomen_raw_ = Vector3d::Zero();
-    std::mutex abdomen_mutex_;
+    // Última fuerza recibida (callback separado)
+    std::mutex data_mutex_;
+    std::vector<double> latest_robot_force_ = {0,0,0};
+    std::vector<double> latest_tissue_force_ = {0,0,0};
+    Vector3d latest_abdomen_force_ = Vector3d::Zero();
 
     // Publishers 
     ros::Publisher pub_tej_est_;      // estimación tejido
@@ -166,12 +176,13 @@ private:
     ros::Publisher pub_robot_tared_;  // F_total tarada (para PlotJuggler)
     ros::Publisher pub_tej_real_;     // F_tejido real tarada
     ros::Publisher pub_abd_real_;     // F_abdomen real tarada
+    ros::Publisher pub_tej_off_;      // F_tejido del modelo offline
+    ros::Publisher pub_abd_off_;      // F_abdomen del modelo offline
 
     // Subscribers 
-    message_filters::Subscriber<std_msgs::Float64MultiArray> sub_pose_;
-    message_filters::Subscriber<std_msgs::Float64MultiArray> sub_robot_force_;
-    message_filters::Subscriber<std_msgs::Float64MultiArray> sub_tissue_force_;
-    std::shared_ptr<message_filters::Synchronizer<SyncPolicy3>> sync_;
+    ros::Subscriber sub_pose_;
+    ros::Subscriber sub_robot_force_;
+    ros::Subscriber sub_tissue_force_;
     ros::Subscriber sub_abdomen_;
 
     // Servicios 

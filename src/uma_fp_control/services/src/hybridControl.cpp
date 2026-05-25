@@ -382,7 +382,7 @@ hybridControl::FTResult hybridControl::compensateForce(const Eigen::Matrix4d& T_
 //funciones
 void hybridControl::initializeRobot(int type, double p_estimado_init, double tool_length, std::vector<double> initPosition){
     //p_estimado = p_estimado_init;
-    std::cout << "vamos a inicializar" << std::endl;
+    std::cout << "vamos a inicializar: " <<initPosition[0]  << ", " <<initPosition[1]  << ", " <<initPosition[2]  << ", "<<initPosition[3]  << ", "<<initPosition[4]  << ", " << std::endl;
     init->initialize(initPosition,tool0, ur);
     tool->computeTwrist(type, p_estimado_init, tool_length, tr);
     E_T_TTP = tool->E_T_TTP;
@@ -449,7 +449,7 @@ void hybridControl::computeRobotCinematic(double L){
     fulcrum_point_des.z = desPose.z - fulcrum_position.z;
     //std::cout << "FULCRUM?" << std::endl;
     //
-    if (desPoseReceived) {// && (abs(forceAbdomen[0]) < 1) && (abs(forceAbdomen[1]) < 1) && (abs(forceAbdomen[2]) < 1)){
+    if (desPoseReceived) {// && (abs(forceAbdomen[0]) < 1) && (abs(forceAbdomen[1]) < 1) && (abs(forceAbdomen[2]) < 1)){ //desPoseReceived
         Eigen::MatrixXd R_Fp(4,4);
         R_Fp = tr->desp({fulcrum_position.x, fulcrum_position.y, fulcrum_position.z});
         vZ[0]=fulcrum_point_des.x;
@@ -517,10 +517,10 @@ void hybridControl::computeRobotCinematic(double L){
         velVector[5]=round(velVector[5]);
         velVector[5]/=1000;
         //std::cout << "velVector: " << velVector[0] << ", " << velVector[1] << ", " << velVector[2] << ", " << std::endl;
-        velLineal << velVector[0]/5 ,velVector[1]/5,velVector[2]/5,0; //AUI VEL IRENE AQUI DE VERDAD AQUI Ñ
-        velAngular << velVector[3]/5, velVector[4]/5,0,0;
+        velLineal << velVector[0]/1 ,velVector[1]/1,velVector[2]/1,0; //AUI VEL IRENE AQUI DE VERDAD AQUI Ñ
+        velAngular << velVector[3]/4, velVector[4]/4,0,0;
         
-        std::cout << "+++++++++++++++" << std::endl;
+        //std::cout << "+++++++++++++++" << std::endl;
         //if (sendWait) ur->speedl(velVector, 0.5, 0.5);
         /*if (sendWait){
             std::cout << "sendWait:--------------------- "<< std::endl;
@@ -550,8 +550,8 @@ void hybridControl::computeRobotCinematic(double L){
             std::cout << "velVector: " << velVector[0] << ", " << velVector[1] << ", " << velVector[2] << ", " << std::endl;
             ur->speedl(velVector, 0.5, 0.5);
         }*/
-        velVector = {velLineal(0),velLineal(1),velLineal(2),-velAngular(0),velAngular(1),0};
-        std::cout << "velVector: " << velVector[0] << ", " << velVector[1] << ", " << velVector[2] << ", " << std::endl;
+        velVector = {velLineal(0),velLineal(1),velLineal(2),0,0,0};//-velAngular(0),velAngular(1),0};
+        //std::cout << "velVector: " << velVector[0] << ", " << velVector[1] << ", " << velVector[2] << ", " << velVector[3] << ", " << velVector[4] << ", " << velVector[5] <<std::endl;
         ur->speedl(velVector, 0.5, 0.5);
         
     } else{

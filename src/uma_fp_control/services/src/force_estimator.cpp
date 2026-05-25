@@ -58,22 +58,22 @@ ForceEstimator::ForceEstimator(ros::NodeHandle& nh, ros::NodeHandle& nh_priv)
     pub_robot_tared_= nh.advertise<std_msgs::Float64MultiArray>("robot_force_tared",     100);
     pub_tej_real_   = nh.advertise<std_msgs::Float64MultiArray>("tissue_force_real",      100);
     pub_abd_real_   = nh.advertise<std_msgs::Float64MultiArray>("abdomen_force_real",     100);
+    pub_tej_off_   = nh.advertise<std_msgs::Float64MultiArray>("tissue_force_offline",      100);
+    pub_abd_off_   = nh.advertise<std_msgs::Float64MultiArray>("abdomen_force_offline",     100);
+
 
     // Servicios 
     srv_tare_   = nh.advertiseService("tare_forces",   &ForceEstimator::srvTare,   this);
     srv_freeze_ = nh.advertiseService("freeze_theta",  &ForceEstimator::srvFreeze, this);
 
     // Subscripciones sincronizadas 
-    sub_pose_.subscribe        (nh, "/auto/pose_topic",        50);
-    sub_robot_force_.subscribe (nh, "/auto/robotbase_force",   50);
-    sub_tissue_force_.subscribe(nh, "/auto/tfg/tissue_force",  50);
-
-    sync_ = std::make_shared<message_filters::Synchronizer<SyncPolicy3>>(
-        SyncPolicy3(50), sub_pose_, sub_robot_force_, sub_tissue_force_);
-    sync_->registerCallback(&ForceEstimator::syncCallback, this);
-
-    // Abdomen sin sincronizar estricto (otro robot, otra frecuencia)
-    sub_abdomen_ = nh.subscribe("/darel/abdomen_force_topic", 50,
+    sub_robot_force_ = nh.subscribe("/auto/robotbase_force", 1,
+                                &ForceEstimator::robotForceCb, this);
+    sub_tissue_force_ = nh.subscribe("/auto/tfg/tissue_force", 1,
+                                &ForceEstimator::tissueForceCb, this);
+    sub_pose_ = nh.subscribe("/auto/pose_topic", 1,
+                                &ForceEstimator::poseCb, this);
+    sub_abdomen_ = nh.subscribe("/darel/abdomen_force_topic", 1,
                                 &ForceEstimator::abdomenCb, this);
 
     ROS_INFO("[ForceEstimator] Nodo listo. Modo: CALIBRATING");
@@ -133,15 +133,34 @@ void ForceEstimator::initTheta()
     // Y (igual que X)
     thY_ = thX_;
     PY_  = PX_;
+
+    //modelo offline
+    thX_off_ = thX_;
+    thY_off_ = thY_;
+    thZ_off_ = thZ_;
 }
 
 
-//  Callback abdomen (sin sincronizar — llega cuando llega)
+//  Callbacks
+void ForceEstimator::robotForceCb(const std_msgs::Float64MultiArray::ConstPtr& msg)
+{
+    if (msg->data.size() < 3) return;
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    latest_robot_force_ = {msg->data[0], msg->data[1], msg->data[2]};
+}
+
+void ForceEstimator::tissueForceCb(const std_msgs::Float64MultiArray::ConstPtr& msg)
+{
+    if (msg->data.size() < 3) return;
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    latest_tissue_force_ = {msg->data[0], msg->data[1], msg->data[2]};
+}
+
 void ForceEstimator::abdomenCb(const std_msgs::Float64MultiArray::ConstPtr& msg)
 {
     if (msg->data.size() < 3) return;
-    std::lock_guard<std::mutex> lock(abdomen_mutex_);
-    F_abdomen_raw_ << msg->data[0], msg->data[1], msg->data[2];
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    latest_abdomen_force_ << msg->data[0], msg->data[1], msg->data[2];
 }
 
 
@@ -169,6 +188,7 @@ bool ForceEstimator::srvTare(std_srvs::Trigger::Request&,
     fac_cur_   = 0.8;
     xk_   = {0,0,0};  xk_1_ = {0,0,0};  xk_2_ = {0,0,0};
     Fk_1_ = {0,0,0};  Fk_2_ = {0,0,0};
+    Fk_1_off_ = {0,0,0};  Fk_2_off_ = {0,0,0};
 
     res.success = true;
     res.message = "Taraje iniciado — promediando " + std::to_string(N_TARE_) + " muestras.";
@@ -195,14 +215,10 @@ bool ForceEstimator::srvFreeze(std_srvs::Trigger::Request&,
 }
 
 
-//  Callback principal sincronizado (pose + robot_force + tissue_force)
-void ForceEstimator::syncCallback(
-    const std_msgs::Float64MultiArray::ConstPtr& pose_msg,
-    const std_msgs::Float64MultiArray::ConstPtr& robot_force_msg,
-    const std_msgs::Float64MultiArray::ConstPtr& tissue_force_msg)
+//  Callback pose
+void ForceEstimator::poseCb(const std_msgs::Float64MultiArray::ConstPtr& pose_msg)
 {
     if (pose_msg->data.size() < 16) return;
-    if (robot_force_msg->data.size() < 3) return;
 
     // 1. Extraer posición TCP del world desde T_TTP (column-major, 16 vals) 
     // pose_topic publica T_TTP columna por columna igual que en movimientoTFG.cpp
@@ -213,21 +229,14 @@ void ForceEstimator::syncCallback(
 
     std::vector<double> pos_raw = {T_TTP(0,3), T_TTP(1,3), T_TTP(2,3)};
 
-    // 2. Señales de fuerza crudas 
-    std::vector<double> F_robot_raw   = {robot_force_msg->data[0],
-                                         robot_force_msg->data[1],
-                                         robot_force_msg->data[2]};
-    std::vector<double> F_tissue_raw  = {0,0,0};
-    if (tissue_force_msg && tissue_force_msg->data.size() >= 3) {
-        F_tissue_raw = {tissue_force_msg->data[0],
-                        tissue_force_msg->data[1],
-                        tissue_force_msg->data[2]};
-    }
-
+    // 2. Señales de fuerza
+    std::vector<double> F_robot_raw, F_tissue_raw;
     Vector3d F_abdomen_raw;
     {
-        std::lock_guard<std::mutex> lock(abdomen_mutex_);
-        F_abdomen_raw = F_abdomen_raw_;
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        F_robot_raw = latest_robot_force_;
+        F_tissue_raw = latest_tissue_force_;
+        F_abdomen_raw = latest_abdomen_force_;
     }
     std::vector<double> F_abd_raw_v = {F_abdomen_raw(0),
                                        F_abdomen_raw(1),
@@ -381,6 +390,8 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
         double E0_Z  = -1384.0 / 0.59;
         Fk_1_ = {E0_XY*xe[0], E0_XY*xe[1], E0_Z*xe[2]};
         Fk_2_ = Fk_1_;
+        Fk_1_off_ = Fk_1_;
+        Fk_2_off_ = Fk_1_;
     }
 
     // F. Regresores 
@@ -389,7 +400,7 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     phY << ar*(-Fk_1_[1]), ar*(-Fk_2_[1]), xe[1], xk_1_[1], xk_2_[1];
     phZ << ar*(-Fk_1_[2]), ar*(-Fk_2_[2]), xe[2], xk_1_[2], xk_2_[2];
 
-    // G. Predicción ARX 
+    // G. Predicción ARX (online)
     std::array<double,3> Fp_tej;
     Fp_tej[0] = thX_.dot(phX);
     Fp_tej[1] = thY_.dot(phY);
@@ -398,6 +409,21 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     // Saturación
     for (int i = 0; i < 3; ++i)
         Fp_tej[i] = std::min(Fp_tej[i], tol_sat_);
+
+    // G2. Predicción offline
+    Vector5d phX_off, phY_off, phZ_off;
+    phX_off << ar*(-Fk_1_off_[0]), ar*(-Fk_2_off_[0]), xe[0], xk_1_[0], xk_2_[0];
+    phY_off << ar*(-Fk_1_off_[1]), ar*(-Fk_2_off_[1]), xe[1], xk_1_[1], xk_2_[1];
+    phZ_off << ar*(-Fk_1_off_[2]), ar*(-Fk_2_off_[2]), xe[2], xk_1_[2], xk_2_[2];
+
+    std::array<double,3> Fp_tej_off;
+    Fp_tej_off[0] = thX_off_.dot(phX_off);
+    Fp_tej_off[1] = thY_off_.dot(phY_off);
+    Fp_tej_off[2] = thZ_off_.dot(phZ_off);
+
+    // Saturación
+    for (int i = 0; i < 3; ++i)
+        Fp_tej[i] = std::min(Fp_tej_off[i], tol_sat_);
 
     // H. RLS (solo en modo CALIBRATING, en contacto estable) 
     if (mode_ == Mode::CALIBRATING &&
@@ -417,10 +443,15 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     Fp_tej[1] *= ramp;
     Fp_tej[2] *= ramp;
 
+    Fp_tej_off[0] *= ramp;
+    Fp_tej_off[1] *= ramp;
+    Fp_tej_off[2] *= ramp;
+
     // I. Separación de fuerzas 
     // F_total → frame mundo
     Vector3d F_tot_world = R_Mesa_Auto_ * F_robot;
     Vector3d F_abd_est   = F_tot_world - Vector3d(Fp_tej[0], Fp_tej[1], Fp_tej[2]);
+    Vector3d F_abd_off   = F_tot_world - Vector3d(Fp_tej_off[0], Fp_tej_off[1], Fp_tej_off[2]);
 
     // J. Publicar 
     auto makeMsg = [](double x, double y, double z) {
@@ -429,8 +460,12 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
         return m;
     };
 
+    // Publicar Online
     pub_tej_est_.publish(makeMsg(Fp_tej[0], Fp_tej[1], Fp_tej[2]));
     pub_abd_est_.publish(makeMsg(F_abd_est(0), F_abd_est(1), F_abd_est(2)));
+    // Publicar Offline
+    pub_tej_off_.publish(makeMsg(Fp_tej_off[0], Fp_tej_off[1], Fp_tej_off[2]));
+    pub_abd_off_.publish(makeMsg(F_abd_off(0), F_abd_off(1), F_abd_off(2)));
     // Señales reales taradas (para comparar en PlotJuggler)
     pub_robot_tared_.publish(makeMsg(F_tot_world(0), F_tot_world(1), F_tot_world(2)));
     pub_tej_real_.publish   (makeMsg(F_tissue(0),    F_tissue(1),    F_tissue(2)));
@@ -439,8 +474,11 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     // K. Actualizar estados pasados 
     Fk_2_ = Fk_1_;
     Fk_1_ = Fp_tej;   // con rampa, igual que en MATLAB (Fk_1 = Fp_tej(k,:))
+    Fk_2_off_ = Fk_1_off_;
+    Fk_1_off_ = Fp_tej_off;
     xk_2_ = xk_1_;
     xk_1_ = xe;
+
 }
 
 

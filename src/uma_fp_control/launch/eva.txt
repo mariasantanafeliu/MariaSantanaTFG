@@ -1,5 +1,6 @@
 #Lanzar comunicaciones entre ambos robots - se abre rviz
-roslaunch uma_ur_launch ex-ur3-combi2.launch
+//roslaunch uma_ur_launch ex-ur3-combi2.launch
+roslaunch uma_ur_launch two_robot_DB.launch
 
 #tarda un rato - tiene que poner algo en verde tipo ready
 roslaunch ur3_moveit_config move_group.launch 
