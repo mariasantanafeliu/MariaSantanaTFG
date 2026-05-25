@@ -219,6 +219,14 @@ void tfg::computeRobotCinematic(double L){
         velVector = {velLineal(0),velLineal(1),velLineal(2),-velAngular(0),velAngular(1),0}; //velVector = {velLineal(0),velLineal(1),velLineal(2),-velAngular(0),velAngular(1),0};
         //std::cout << "velVector: " << velVector[0] << ", " << velVector[1] << ", " << velVector[2] << ", " << velVector[3] << ", " << velVector[4] << ", " << velVector[5] << std::endl;
         ur->speedl(velVector, 0.5, 0.5);
+        
+        // arreglo problema velocidad
+        array_vel.data.clear();
+        for (int i = 0; i < 6; ++i) {
+            array_vel.data.push_back(velVector[i]);
+        }
+        vel_pub_.publish(array_vel);
+        array_vel.data.clear();
     } else{
         /*std::cout << "fulcrum_point_des=[" << fulcrum_point_des << "]" << std::endl;
         std::cout << "T_E=[" << T_E << "]"<< std::endl;
