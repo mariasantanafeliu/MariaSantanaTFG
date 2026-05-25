@@ -75,6 +75,8 @@ ForceEstimator::ForceEstimator(ros::NodeHandle& nh, ros::NodeHandle& nh_priv)
                                 &ForceEstimator::poseCb, this);
     sub_abdomen_ = nh.subscribe("/darel/abdomen_force_topic", 1,
                                 &ForceEstimator::abdomenCb, this);
+    sub_velocity_ = nh.subscribe("/auto/velocity_topic", 1, 
+                                &ForceEstimator::velocityCb, this); 
 
     ROS_INFO("[ForceEstimator] Nodo listo. Modo: CALIBRATING");
     ROS_INFO("[ForceEstimator] Llama a /tare_forces para tarar y luego a /freeze_theta para congelar theta.");
@@ -163,6 +165,13 @@ void ForceEstimator::abdomenCb(const std_msgs::Float64MultiArray::ConstPtr& msg)
     latest_abdomen_force_ << msg->data[0], msg->data[1], msg->data[2];
 }
 
+void ForceEstimator::velocityCb(const std_msgs::Float64MultiArray::ConstPtr& msg) 
+{
+    if (msg->data.size() < 3) return;
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    latest_velocity_ = {msg->data[0], msg->data[1], msg->data[2]}; 
+}
+
 
 //  Servicio: Taraje
 bool ForceEstimator::srvTare(std_srvs::Trigger::Request&,
@@ -230,13 +239,14 @@ void ForceEstimator::poseCb(const std_msgs::Float64MultiArray::ConstPtr& pose_ms
     std::vector<double> pos_raw = {T_TTP(0,3), T_TTP(1,3), T_TTP(2,3)};
 
     // 2. Señales de fuerza
-    std::vector<double> F_robot_raw, F_tissue_raw;
+    std::vector<double> F_robot_raw, F_tissue_raw, V_robot_raw;
     Vector3d F_abdomen_raw;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
         F_robot_raw = latest_robot_force_;
         F_tissue_raw = latest_tissue_force_;
         F_abdomen_raw = latest_abdomen_force_;
+        V_robot_raw = latest_velocity_;
     }
     std::vector<double> F_abd_raw_v = {F_abdomen_raw(0),
                                        F_abdomen_raw(1),
@@ -296,7 +306,7 @@ void ForceEstimator::poseCb(const std_msgs::Float64MultiArray::ConstPtr& pose_ms
 
     // 6. Procesar muestra (ARX + RLS) 
     Vector3d pos_w(pos_raw[0], pos_raw[1], pos_raw[2]);
-    processOneSample(pos_w, F_robot, F_tissue, F_abd_world);
+    processOneSample(pos_w, F_robot, F_tissue, F_abd_world, V_robot_raw);
 }
 
 
@@ -304,7 +314,8 @@ void ForceEstimator::poseCb(const std_msgs::Float64MultiArray::ConstPtr& pose_ms
 void ForceEstimator::processOneSample(const Vector3d& pos_world,
                                        const Vector3d& F_robot,
                                        const Vector3d& F_tissue,
-                                       const Vector3d& F_abdomen)
+                                       const Vector3d& F_abdomen,
+                                       const std::vector<double>& V_robot)
 {
     // A. Deformación del tejido (frame mesa = frame world aquí) 
     // Transformar posición al frame mesa
@@ -369,10 +380,22 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     xe[0] *= ramp; xe[1] *= ramp; xe[2] *= ramp;
 
     // D. Velocidad y trinquete 
+    // Velocidad calculada por el histórico de deformación
     double fs = 1.0 / Ts_;
     double vxe0 = (xe[0] - xk_1_[0]) * fs;
     double vxe1 = (xe[1] - xk_1_[1]) * fs;
-    double vel_lat = std::sqrt(vxe0*vxe0 + vxe1*vxe1);
+    double vel_lat_calc = std::sqrt(vxe0*vxe0 + vxe1*vxe1);
+
+    // Velocidad del topic (rotarla para pasarla al frame mesa)
+    Eigen::Vector3d V_mesa = R_Mesa_Auto_ * Eigen::Vector3d(V_robot[0], V_robot[1], V_robot[2]);
+    double vel_lat_topic = std::sqrt(V_mesa(0)*V_mesa(0) + V_mesa(1)*V_mesa(1));
+
+    // Si el topic viene vacío/cero pero nos estamos moviendo, usamos la calculada
+    double vel_lat = vel_lat_topic;
+    if (std::abs(vel_lat_topic) < 1e-4 && vel_lat_calc > 1e-3) {
+        vel_lat = vel_lat_calc;
+    }
+
 
     double fraw = std::max(fraw_min_, fraw_max_ - vel_lat * fraw_kvel_);
     if (dZ_k < 0.0 && fraw < fac_cur_)

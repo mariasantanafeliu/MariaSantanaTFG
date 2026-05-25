@@ -76,8 +76,8 @@ private:
     void poseCb(const std_msgs::Float64MultiArray::ConstPtr& pose_msg);
     void robotForceCb(const std_msgs::Float64MultiArray::ConstPtr& msg);
     void tissueForceCb(const std_msgs::Float64MultiArray::ConstPtr& msg);
-    // Abdomen (solo para visualización)
     void abdomenCb(const std_msgs::Float64MultiArray::ConstPtr& msg);
+    void velocityCb(const std_msgs::Float64MultiArray::ConstPtr& msg);
 
     // Servicios
     bool srvTare(std_srvs::Trigger::Request&,  std_srvs::Trigger::Response& res);
@@ -89,7 +89,8 @@ private:
     void     processOneSample(const Vector3d& pos_world,
                               const Vector3d& F_robot,
                               const Vector3d& F_tissue,
-                              const Vector3d& F_abdomen);
+                              const Vector3d& F_abdomen,
+                              const std::vector<double>& V_robot);
 
     // RLS para un eje
     void rlsUpdate(Vector5d& th, Matrix5d& P,
@@ -169,6 +170,7 @@ private:
     std::vector<double> latest_robot_force_ = {0,0,0};
     std::vector<double> latest_tissue_force_ = {0,0,0};
     Vector3d latest_abdomen_force_ = Vector3d::Zero();
+    std::vector<double> latest_velocity_ = {0,0,0};
 
     // Publishers 
     ros::Publisher pub_tej_est_;      // estimación tejido
@@ -184,6 +186,7 @@ private:
     ros::Subscriber sub_robot_force_;
     ros::Subscriber sub_tissue_force_;
     ros::Subscriber sub_abdomen_;
+    ros::Subscriber sub_velocity_;
 
     // Servicios 
     ros::ServiceServer srv_tare_;
