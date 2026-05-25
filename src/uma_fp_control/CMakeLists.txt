@@ -25,6 +25,9 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   omni_msgs
   geometry_msgs
+  message_filters
+  std_srvs
+  roslib
 )
 
 find_package(Eigen3 REQUIRED)
@@ -349,6 +352,10 @@ target_link_libraries(${PROJECT_NAME}_hapticMock ${catkin_LIBRARIES})
 add_executable(${PROJECT_NAME}_teleopTFG mocks/teleoperaciontfgKeyboard.cpp)
 set_target_properties(${PROJECT_NAME}_teleopTFG PROPERTIES OUTPUT_NAME teleopTFG PREFIX "")
 target_link_libraries(${PROJECT_NAME}_teleopTFG ${catkin_LIBRARIES})
+#estimador de fuerzas
+add_executable(${PROJECT_NAME}_force_estimator services/src/force_estimator.cpp)
+set_target_properties(${PROJECT_NAME}_force_estimator PROPERTIES OUTPUT_NAME force_estimator PREFIX "")  
+target_link_libraries(${PROJECT_NAME}_force_estimator ${catkin_LIBRARIES} ${EIGEN3_LIBRARIES})
 # DIGITAL TWINS SOFT TISSUE
 #add_executable(${PROJECT_NAME}_tissueDT services/src/softTissueDT.cpp)
 #set_target_properties(${PROJECT_NAME}_tissueDT PROPERTIES OUTPUT_NAME tissueDT PREFIX "")

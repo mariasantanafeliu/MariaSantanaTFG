@@ -36,17 +36,17 @@
                 /joint_states: para verlo entero en vriz y no solo los ejes moviendose
                 /rosout: lo que va saliendo en la consola
                 
-                /auto/pose_topic : matriz de trasformacion del TCP (para deformacion)
+                /auto/pose_topic : pose del TCP (para deformacion)
                 /auto/effectorFinal_topic : posicion efector final
                 /auto/velocity_topic : velocidad (para viscocidad)
-                /auto/effectorFinal_force : fuerza total (fsensor) (la que el algoritmo debe intentar predecir)
-                /auto/robotbase_force : fuerza base robot (por si calculo fuerza punta falla)
+                /auto/effectorFinal_force : fuerza total (fsensor) respecto al efector final
+                /auto/robotbase_force : fuerza robot respecto a base!
                 /auto/fulcrum : posicion donde el robot cree que esta el agujero (RCM estimado)
                 /auto/tissue_force : fuerza real organo (sensor mesa)
 
                 /darel/pose_topic : posicion del abdomen
                 /darel/abdomen_force_topic : fuerza real abdomen (Objetivo: Ftotal - Festimada == Forgano)
-                /darel/abdomen_effectorForce_topic : 
+                /darel/abdomen_effectorForce_topic : fuerza abdomen respecto al efector final
 
                 /ur3e/rtde/force : datos crudos del sensor darel (por seguridad)
     -->

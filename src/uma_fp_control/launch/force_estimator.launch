@@ -1,0 +1,34 @@
+<launch>
+  <node name="force_estimator" pkg="uma_fp_control" type="force_estimator"
+        output="screen" ns="auto">
+
+    <!-- Ruta a la carpeta config del paquete (se resuelve automáticamente
+         con ros::package::getPath en el código, pero se puede sobreescribir) -->
+    <!-- <param name="config_path" value="/ruta/personalizada/config"/> -->
+
+    <!-- Parámetros del modelo — ajustar si cambia el tejido -->
+    <param name="Z_adh"      value="0.003"/>
+    <param name="RAMP_WIN"   value="10"/>
+    <param name="lambda_rls" value="0.999"/>
+    <!-- Z_sup se lee automáticamente de world2tissue.csv -->
+
+  </node>
+
+  <!-- PlotJuggler para visualización en tiempo real
+       Abre PlotJuggler y suscríbete a:
+         /auto/tissue_force_estimated   → F tejido estimada (X,Y,Z)
+         /auto/abdomen_force_estimated  → F abdomen estimada (X,Y,Z)
+         /auto/robot_force_tared        → F total robot tarada (X,Y,Z)
+         /auto/tissue_force_real        → F tejido real tarada (X,Y,Z)
+         /auto/abdomen_force_real       → F abdomen real tarada (X,Y,Z)
+  -->
+
+  <!-- Workflow:
+       1. roslaunch uma_fp_control force_estimator.launch
+       2. rosservice call /auto/tare_forces   ← taraje (robot quieto)
+          Esperar ~0.4s hasta que el terminal confirme "Taraje completado"
+       3. (Opcional en calibración) Mover el robot sobre el tejido
+          El RLS adapta theta en tiempo real
+       4. rosservice call /auto/freeze_theta  ← congelar theta para cirugía
+  -->
+</launch>
