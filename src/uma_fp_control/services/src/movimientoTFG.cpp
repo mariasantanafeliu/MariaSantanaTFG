@@ -20,6 +20,8 @@ tfg::tfg(ur_script* urScript, UMA_trans* umaTf,
     desPose.x = 0.;
     desPose.y = 0.;
     desPose.z = 0.;
+    desPoseReceived = false;//aa
+    start_time = ros::Time::now();
 
     vX = {0.0,0.0,0.0};
     vY = {0.0,0.0,0.0};
@@ -218,15 +220,21 @@ void tfg::computeRobotCinematic(double L){
         velAngular << velVector[3], velVector[4],velVector[5],0;
         velVector = {velLineal(0),velLineal(1),velLineal(2),-velAngular(0),velAngular(1),0}; //velVector = {velLineal(0),velLineal(1),velLineal(2),-velAngular(0),velAngular(1),0};
         //std::cout << "velVector: " << velVector[0] << ", " << velVector[1] << ", " << velVector[2] << ", " << velVector[3] << ", " << velVector[4] << ", " << velVector[5] << std::endl;
-        ur->speedl(velVector, 0.5, 0.5);
         
-        // arreglo problema velocidad
-        array_vel.data.clear();
-        for (int i = 0; i < 6; ++i) {
-            array_vel.data.push_back(velVector[i]);
+        if ((ros::Time::now() - start_time).toSec() > 5.0){
+            ur->speedl(velVector, 0.5, 0.5);
+            
+            // arreglo problema velocidad
+            array_vel.data.clear();
+            for (int i = 0; i < 6; ++i) {
+                array_vel.data.push_back(velVector[i]);
+            }
+            vel_pub_.publish(array_vel);
+            array_vel.data.clear();
+        } else {
+            ur->stopl(1);
+            std__cout << "[INFO] Posición recibida, pero movimiento bloqueado." << std::endl;
         }
-        vel_pub_.publish(array_vel);
-        array_vel.data.clear();
     } else{
         /*std::cout << "fulcrum_point_des=[" << fulcrum_point_des << "]" << std::endl;
         std::cout << "T_E=[" << T_E << "]"<< std::endl;

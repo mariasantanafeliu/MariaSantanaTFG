@@ -23,56 +23,69 @@ int main(int argc, char **argv)
         double paso_fino = 0.001;
         double paso_medio = 0.005;
 
+        bool tecla_valida = false;
+
         switch (input){
             case '1': 
                 msg.x = paso_medio;
                 ROS_INFO("\r\n X + 5mm \r\n");
+                tecla_valida = true;
                 break;  
             case '2':
                 msg.y = paso_medio;
                 ROS_INFO("\r\n Y + 5mm \r\n");
+                tecla_valida = true;
                 break; 
             case '3': 
                 msg.z = paso_medio;
                 ROS_INFO("\r\n Z + 5mm \r\n");
+                tecla_valida = true;
                 break;    
             case '4': 
                 msg.x = -paso_medio;
                 ROS_INFO("\r\n X - 5mm \r\n");
+                tecla_valida = true;
                 break;  
             case '5':
                 msg.y = -paso_medio;
                 ROS_INFO("\r\n Y - 5mm \r\n");
+                tecla_valida = true;
                 break; 
             case '6': 
                 msg.z = -paso_medio;
                 ROS_INFO("\r\n Z - 5mm \r\n");
+                tecla_valida = true;
                 break;  
             case '7':
                 msg.x = -0.0318;
                 msg.y = -0.0318;
                 msg.z = -0.01;
                 ROS_INFO("\r\n Diagonal X Y \r\n");
+                tecla_valida = true;
                 break;  
             case '8':
                 msg.x = -0.005;
                 msg.y = -0.005;
                 msg.z = -0.005;
                 ROS_INFO("\r\n Diagonal -X -Y -Z \r\n");
+                tecla_valida = true;
                 break;
             case '9':
                 msg.x = -0.005;
                 msg.y = -0.005;
                 msg.z = 0;
                 ROS_INFO("\r\n Diagonal -X -Y . Pulsa x para salir\r\n");
+                tecla_valida = true;
                 break;
             case 'b':
                 msg.x = 0.02; 
                 ROS_INFO("\r\n Salto en X y espera \r\n");
+                tecla_valida = true;
                 break;
             case 'v':
                 msg.x = -0.04; 
                 ROS_INFO("\r\n Salto en -X y espera \r\n");
+                tecla_valida = true;
                 break;
             case 'c':{
                 /*double T = 10.0;
@@ -131,6 +144,7 @@ int main(int argc, char **argv)
                 msg.x = 0.01;
                 pub.publish(msg);
                 ROS_INFO("\r\n Chirp terminado \r\n");
+                tecla_valida = false;
                 break;
 
             }
@@ -156,14 +170,22 @@ int main(int argc, char **argv)
                 msg.x = -0.0075;
                 msg.y = 0;
                 pub.publish(msg);
+                tecla_valida = false;
                 break;
             }
             case 'x':
                 salir = true;
                 system("stty cooked");
-                break;         
+                tecla_valida = false;
+                break;    
+                
+            default:
+                tecla_valida = false;
+                break;
         }
-        pub.publish(msg); //escucha por si alguien quiere hablar con mi nodo 
+        if (tecla_valida){
+            pub.publish(msg); //escucha por si alguien quiere hablar con mi nodo 
+        }
     }
   return 0;
 }
