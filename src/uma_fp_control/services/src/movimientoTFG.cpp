@@ -233,7 +233,7 @@ void tfg::computeRobotCinematic(double L){
             array_vel.data.clear();
         } else {
             ur->stopl(1);
-            std__cout << "[INFO] Posición recibida, pero movimiento bloqueado." << std::endl;
+            std::cout << "[INFO] Posición recibida, pero movimiento bloqueado." << std::endl;
         }
     } else{
         /*std::cout << "fulcrum_point_des=[" << fulcrum_point_des << "]" << std::endl;

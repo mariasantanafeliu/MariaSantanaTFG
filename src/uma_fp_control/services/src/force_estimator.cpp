@@ -28,9 +28,8 @@ ForceEstimator::ForceEstimator(ros::NodeHandle& nh, ros::NodeHandle& nh_priv)
     // Cargar matrices de transformación 
     // T12: auto → darel
     T12_ = loadCSV(config_path_ + "/auto2darel.csv");
-    // T23: darel → world = inv(world2darel)
-    Matrix4d world2darel = loadCSV(config_path_ + "/world2darel.csv");
-    T23_ = world2darel.inverse();
+    // T23: darel → world
+    Matrix4d T23_ = loadCSV(config_path_ + "/darel2world.csv");
     // Z_sup viene de world2tissue (posición Z de la superficie del tejido)
     Matrix4d world2tissue = loadCSV(config_path_ + "/world2tissue.csv");
     Z_sup_ = world2tissue(2,3);   // componente Z de traslación
@@ -40,7 +39,7 @@ ForceEstimator::ForceEstimator(ros::NodeHandle& nh, ros::NodeHandle& nh_priv)
     R_Mesa_Auto_ = T13_.topLeftCorner<3,3>().transpose();
     R_Darel_Mesa_= T23_.topLeftCorner<3,3>();
 
-    ROS_INFO("[ForceEstimator] Matrices de transformación cargadas.");
+    ROS_INFO("[ForceEstimator] Matrices de transformacion cargadas.");
     ROS_INFO_STREAM("T13 =\n" << T13_);
 
     // Filtros 
@@ -200,7 +199,7 @@ bool ForceEstimator::srvTare(std_srvs::Trigger::Request&,
     Fk_1_off_ = {0,0,0};  Fk_2_off_ = {0,0,0};
 
     res.success = true;
-    res.message = "Taraje iniciado — promediando " + std::to_string(N_TARE_) + " muestras.";
+    res.message = "Taraje iniciado - promediando " + std::to_string(N_TARE_) + " muestras.";
     ROS_INFO_STREAM("[ForceEstimator] " << res.message);
     return true;
 }
@@ -323,7 +322,8 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     Eigen::Vector4d pm_h = T13_.inverse() * pw_h;
     double Pm_x = pm_h(0), Pm_y = pm_h(1), Pm_z = pm_h(2);
     double dZ_k = Pm_z - Z_sup_;
-
+    ROS_INFO_THROTTLE(1.0, "Z_Robot_Mesa: %.4f | Z_Sperficie: %.4f | Deformación dZ_k: %.4f", Pm_z, Z_sup_, dZ_k);
+    
     if (dZ_k <= 0.0) {
         // Contacto con tejido
         if (!en_cont_) {
@@ -446,7 +446,7 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
 
     // Saturación
     for (int i = 0; i < 3; ++i)
-        Fp_tej[i] = std::min(Fp_tej_off[i], tol_sat_);
+        Fp_tej_off[i] = std::min(Fp_tej_off[i], tol_sat_);
 
     // H. RLS (solo en modo CALIBRATING, en contacto estable) 
     if (mode_ == Mode::CALIBRATING &&
