@@ -122,13 +122,13 @@ void ForceEstimator::initTheta()
     // theta = [a1; a2; b0; b1; b2]
 
     // Z
-    thZ_ << -1.9936,  0.9937,
-            -31.6816,  0.0000,  31.6816;
+    thZ_ << -1.98716,  0.98720,
+            -16.1182,  -0.0440,  16.0742;
     PZ_ = 10.0 * Matrix5d::Identity();
 
     // X
-    thX_ << -1.9887,  0.9888,
-            -3.7441,   0.0000,  3.7441;
+    thX_ << -1.98711,  0.98720,
+            -1.9170,   -0.0188,  1.8983;
     PX_ = 10.0 * Matrix5d::Identity();
 
     // Y (igual que X)
@@ -252,7 +252,7 @@ void ForceEstimator::poseCb(const std_msgs::Float64MultiArray::ConstPtr& pose_ms
                                        F_abdomen_raw(2)};
 
     // 3. Filtrado causal 
-    filt_pos_.filter    (pos_raw);
+    //filt_pos_.filter    (pos_raw);
     filt_robot_.filter  (F_robot_raw);
     filt_tissue_.filter (F_tissue_raw);
     filt_abdomen_.filter(F_abd_raw_v);
@@ -322,7 +322,7 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     Eigen::Vector4d pm_h = T13_.inverse() * pw_h;
     double Pm_x = pm_h(0), Pm_y = pm_h(1), Pm_z = pm_h(2);
     double dZ_k = Pm_z - Z_sup_;
-    ROS_INFO_THROTTLE(1.0, "Z_Robot_Mesa: %.4f | Z_Sperficie: %.4f | Deformación dZ_k: %.4f", Pm_z, Z_sup_, dZ_k);
+    ROS_INFO_THROTTLE(1.0, "Z_auto_recib: %.4f | Z_Robot_Mesa: %.4f | Z_Superficie: %.4f | Deformacion dZ_k: %.4f", pos_world(2), Pm_z, Z_sup_, dZ_k);
     
     if (dZ_k <= 0.0) {
         // Contacto con tejido
@@ -408,13 +408,18 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
 
     // E. Warm-start en activación AR 
     double ar = (contact_k_ >= RAMP_WIN_) ? 1.0 : 0.0;
-    if (contact_k_ == RAMP_WIN_) {
+    static bool warm_start_done = false;
+
+    if (contact_k_ == RAMP_WIN_ && !warm_start_done) {
         double E0_XY = -590.0 / 1.40;
         double E0_Z  = -1384.0 / 0.59;
         Fk_1_ = {E0_XY*xe[0], E0_XY*xe[1], E0_Z*xe[2]};
         Fk_2_ = Fk_1_;
         Fk_1_off_ = Fk_1_;
         Fk_2_off_ = Fk_1_;
+        warm_start_done = true;
+    } else if (contact_k_ == 0) {
+        warm_start_done = false;
     }
 
     // F. Regresores 
@@ -447,6 +452,8 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     // Saturación
     for (int i = 0; i < 3; ++i)
         Fp_tej_off[i] = std::min(Fp_tej_off[i], tol_sat_);
+
+    ROS_INFO_THROTTLE(0.5, "[OFFLINE DEBUG] dz: %4f | Fz_offline: %4f | thZ0: % 4f", dZ_k, Fp_tej_off[2], thZ_off_(0));
 
     // H. RLS (solo en modo CALIBRATING, en contacto estable) 
     if (mode_ == Mode::CALIBRATING &&
