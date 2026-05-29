@@ -253,9 +253,9 @@ void ForceEstimator::poseCb(const std_msgs::Float64MultiArray::ConstPtr& pose_ms
 
     // 3. Filtrado causal 
     //filt_pos_.filter    (pos_raw);
-    filt_robot_.filter  (F_robot_raw);
-    filt_tissue_.filter (F_tissue_raw);
-    filt_abdomen_.filter(F_abd_raw_v);
+    //filt_robot_.filter  (F_robot_raw);
+    //filt_tissue_.filter (F_tissue_raw);
+    //filt_abdomen_.filter(F_abd_raw_v);
 
     // Inversión de signo en Z (igual que en MATLAB)
     F_tissue_raw[2] = -F_tissue_raw[2];
@@ -456,8 +456,12 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     Fp_tej_off[2] = std::min(Fp_tej_off[2], -tol_sat_);*/
 
     //ROS_INFO_THROTTLE(1, "[OFFLINE DEBUG] dz: %4f | Fz_offline: %4f | thZ0: % 4f", dZ_k, Fp_tej_off[2], thZ_off_(0));
+    ROS_INFO_THROTTLE(1, "def real: %.4f | f_off: %.4f", xk_[2], Fp_tej_off[2]);
 
     // H. RLS (solo en modo CALIBRATING, en contacto estable) 
+    double delta_z = std::abs(xk_[2]-xk_[1]);
+    double lambda_din = (delta_z > 2e-6) ? lambda_rls_ : 1.0;
+
     if (mode_ == Mode::CALIBRATING &&
         std::abs(xk_[2]) > 0.0001 &&
         contact_k_ >= RAMP_WIN_)
@@ -465,9 +469,9 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
         double eX = F_tissue(0) - Fp_tej[0];
         double eY = F_tissue(1) - Fp_tej[1];
         double eZ = F_tissue(2) - Fp_tej[2];
-        rlsUpdate(thX_, PX_, phX, eX, lambda_rls_);
-        rlsUpdate(thY_, PY_, phY, eY, lambda_rls_);
-        rlsUpdate(thZ_, PZ_, phZ, eZ, lambda_rls_);
+        rlsUpdate(thX_, PX_, phX, eX, lambda_din);
+        rlsUpdate(thY_, PY_, phY, eY, lambda_din);
+        rlsUpdate(thZ_, PZ_, phZ, eZ, lambda_din);
     }
 
     // Aplicar rampa a la salida
