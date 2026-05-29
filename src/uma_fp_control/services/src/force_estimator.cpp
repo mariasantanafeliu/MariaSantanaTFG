@@ -261,9 +261,6 @@ void ForceEstimator::poseCb(const std_msgs::Float64MultiArray::ConstPtr& pose_ms
     F_tissue_raw[2] = -F_tissue_raw[2];
     F_abd_raw_v [2] = -F_abd_raw_v[2];
     F_robot_raw [2] = -F_robot_raw[2];
-    // doble inversión MATLAB (artefacto del código original — se mantiene)
-    F_tissue_raw[2] = -F_tissue_raw[2];
-    F_abd_raw_v [2] = -F_abd_raw_v[2];
 
     // 4. Taraje 
     if (tare_requested_ && !tared_) {
@@ -377,13 +374,14 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     xe[0] = xk_[0] * (1.0 + boost_X_gain_ * std::exp(-std::abs(xk_[0]) / boost_X_scale_));
     xe[1] = xk_[1] * (1.0 + boost_Y_gain_ * std::exp(-std::abs(xk_[1]) / boost_Y_scale_));
     xe[2] = xk_[2];
-    xe[0] *= ramp; xe[1] *= ramp; xe[2] *= ramp;
+    xe[0] *= ramp; xe[1] *= ramp; //xe[2] *= ramp;
 
     // D. Velocidad y trinquete 
     // Velocidad calculada por el histórico de deformación
     double fs = 1.0 / Ts_;
     double vxe0 = (xe[0] - xk_1_[0]) * fs;
     double vxe1 = (xe[1] - xk_1_[1]) * fs;
+    double vxe2 = (xe[2] - xk_1_[2]) * fs;
     double vel_lat_calc = std::sqrt(vxe0*vxe0 + vxe1*vxe1);
 
     // Velocidad del topic (rotarla para pasarla al frame mesa)
@@ -396,6 +394,8 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
         vel_lat = vel_lat_calc;
     }
 
+
+    //ROS_INFO_THROTTLE(1, "[VEL] V topic: %.4f, | V calc: %.4f", V_mesa(2), vxe2);
 
     double fraw = std::max(fraw_min_, fraw_max_ - vel_lat * fraw_kvel_);
     if (dZ_k < 0.0 && fraw < fac_cur_)
@@ -435,8 +435,9 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     Fp_tej[2] = thZ_.dot(phZ);
 
     // Saturación
-    for (int i = 0; i < 3; ++i)
-        Fp_tej[i] = std::min(Fp_tej[i], tol_sat_);
+    /*Fp_tej[0] = std::max(std::min(Fp_tej[0], tol_sat_), -tol_sat_);
+    Fp_tej[1] = std::max(std::min(Fp_tej[1], tol_sat_), -tol_sat_);
+    Fp_tej[2] = std::max(Fp_tej[2], -tol_sat_);*/
 
     // G2. Predicción offline
     Vector5d phX_off, phY_off, phZ_off;
@@ -450,14 +451,15 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     Fp_tej_off[2] = thZ_off_.dot(phZ_off);
 
     // Saturación
-    for (int i = 0; i < 3; ++i)
-        Fp_tej_off[i] = std::min(Fp_tej_off[i], tol_sat_);
+    /*Fp_tej_off[0] = std::max(std::min(Fp_tej_off[0], tol_sat_), -tol_sat_);
+    Fp_tej_off[1] = std::max(std::min(Fp_tej_off[1], tol_sat_), -tol_sat_);
+    Fp_tej_off[2] = std::min(Fp_tej_off[2], -tol_sat_);*/
 
-    ROS_INFO_THROTTLE(0.5, "[OFFLINE DEBUG] dz: %4f | Fz_offline: %4f | thZ0: % 4f", dZ_k, Fp_tej_off[2], thZ_off_(0));
+    //ROS_INFO_THROTTLE(1, "[OFFLINE DEBUG] dz: %4f | Fz_offline: %4f | thZ0: % 4f", dZ_k, Fp_tej_off[2], thZ_off_(0));
 
     // H. RLS (solo en modo CALIBRATING, en contacto estable) 
     if (mode_ == Mode::CALIBRATING &&
-        std::abs(xk_[2]) > 0.0005 &&
+        std::abs(xk_[2]) > 0.0001 &&
         contact_k_ >= RAMP_WIN_)
     {
         double eX = F_tissue(0) - Fp_tej[0];
@@ -471,11 +473,14 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     // Aplicar rampa a la salida
     Fp_tej[0] *= ramp;
     Fp_tej[1] *= ramp;
-    Fp_tej[2] *= ramp;
+    //Fp_tej[2] *= ramp;
 
     Fp_tej_off[0] *= ramp;
     Fp_tej_off[1] *= ramp;
-    Fp_tej_off[2] *= ramp;
+    //Fp_tej_off[2] *= ramp;
+    
+    ROS_INFO_THROTTLE(1, "[THETAS] OFF_b0: %.4f | ON_b0: %.4f | OFF_a1: %.4f | ON_a1: %.4f ", 
+                        thZ_off_(2), thZ_(2), thZ_off_(0), thZ_(0));
 
     // I. Separación de fuerzas 
     // F_total → frame mundo
