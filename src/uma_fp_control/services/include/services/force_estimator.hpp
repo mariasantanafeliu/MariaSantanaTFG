@@ -193,4 +193,21 @@ private:
     ros::ServiceServer srv_freeze_;
 
     std::string config_path_;
+
+    // Subscribers nuevos
+    ros::Subscriber sub_fulcrum_;
+    ros::Subscriber sub_trocar_;
+
+    // Variables de posición para el fulcro
+    Eigen::Vector3d P_fulcro_virtual_ = Eigen::Vector3d::Zero();
+    Eigen::Vector3d P_trocar_real_    = Eigen::Vector3d::Zero();
+
+    // Flags para verificar recepción de datos
+    bool has_fulcrum_ = false;
+    bool has_trocar_  = false;
+
+    // Firmas de los nuevos callbacks
+    void fulcrumCb(const std_msgs::Float64MultiArray::ConstPtr& msg);
+    void trocarCb(const std_msgs::Float64MultiArray::ConstPtr& msg);
+
 };

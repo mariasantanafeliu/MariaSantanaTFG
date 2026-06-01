@@ -77,6 +77,11 @@ ForceEstimator::ForceEstimator(ros::NodeHandle& nh, ros::NodeHandle& nh_priv)
     sub_velocity_ = nh.subscribe("/auto/velocity_topic", 1, 
                                 &ForceEstimator::velocityCb, this); 
 
+    sub_fulcrum_ = nh.subscribe("/auto/fulcrum", 1, 
+                                &ForceEstimator::fulcrumCb, this);
+    sub_trocar_  = nh.subscribe("/darel/pose_topic", 1, 
+                                &ForceEstimator::trocarCb, this);
+
     ROS_INFO("[ForceEstimator] Nodo listo. Modo: CALIBRATING");
     ROS_INFO("[ForceEstimator] Llama a /tare_forces para tarar y luego a /freeze_theta para congelar theta.");
 }
@@ -141,6 +146,27 @@ void ForceEstimator::initTheta()
     thZ_off_ = thZ_;
 }
 
+void ForceEstimator::fulcrumCb(const std_msgs::Float64MultiArray::ConstPtr& msg)
+{
+    if (msg->data.size() < 3) return;
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    P_fulcro_virtual_ << msg->data[0], msg->data[1], msg->data[2];
+    has_fulcrum_ = true;
+}
+
+void ForceEstimator::trocarCb(const std_msgs::Float64MultiArray::ConstPtr& msg)
+{
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    if (msg->data.size() >= 16) {
+        // Si viene como matriz 4x4 en column-major (igual que la pose), extraemos la traslación
+        P_trocar_real_ << msg->data[12], msg->data[13], msg->data[14];
+        has_trocar_ = true;
+    } else if (msg->data.size() >= 3) {
+        // Si viene directamente como un punto cartesiano XYZ
+        P_trocar_real_ << msg->data[0], msg->data[1], msg->data[2];
+        has_trocar_ = true;
+    }
+}
 
 //  Callbacks
 void ForceEstimator::robotForceCb(const std_msgs::Float64MultiArray::ConstPtr& msg)
@@ -458,9 +484,18 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     //ROS_INFO_THROTTLE(1, "[OFFLINE DEBUG] dz: %4f | Fz_offline: %4f | thZ0: % 4f", dZ_k, Fp_tej_off[2], thZ_off_(0));
     ROS_INFO_THROTTLE(1, "def real: %.4f | f_off: %.4f", xk_[2], Fp_tej_off[2]);
 
-    // H. RLS (solo en modo CALIBRATING, en contacto estable) 
-    double delta_z = std::abs(xk_[2]-xk_[1]);
-    double lambda_din = (delta_z > 2e-6) ? lambda_rls_ : 1.0;
+    // H. RLS — Cálculo de lambda dinámica independiente por cada eje
+   
+    // Evaluar movimiento (velocidad) en cada eje de deformación
+    double dx_dt = (xe[0] - xk_1_[0]) * fs;
+    double dy_dt = (xe[1] - xk_1_[1]) * fs;
+    double dz_dt = (xe[2] - xk_1_[2]) * fs;
+
+    // Si el eje se mueve (umbral de velocidad), permitimos que el RLS aprenda (lambda_rls).
+    // Si el eje está estático, congelamos ese eje concreto (lambda = 1.0) para evitar que el ruido degrade theta.
+    double lambda_X = (std::abs(dx_dt) > 1e-4) ? lambda_rls_ : 1.0;
+    double lambda_Y = (std::abs(dy_dt) > 1e-4) ? lambda_rls_ : 1.0;
+    double lambda_Z = (std::abs(dz_dt) > 1e-4) ? lambda_rls_ : 1.0;
 
     if (mode_ == Mode::CALIBRATING &&
         std::abs(xk_[2]) > 0.0001 &&
@@ -469,9 +504,11 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
         double eX = F_tissue(0) - Fp_tej[0];
         double eY = F_tissue(1) - Fp_tej[1];
         double eZ = F_tissue(2) - Fp_tej[2];
-        rlsUpdate(thX_, PX_, phX, eX, lambda_din);
-        rlsUpdate(thY_, PY_, phY, eY, lambda_din);
-        rlsUpdate(thZ_, PZ_, phZ, eZ, lambda_din);
+       
+        // Cada eje actualiza con su propia lambda de movimiento
+        rlsUpdate(thX_, PX_, phX, eX, lambda_X);
+        rlsUpdate(thY_, PY_, phY, eY, lambda_Y);
+        rlsUpdate(thZ_, PZ_, phZ, eZ, lambda_Z);
     }
 
     // Aplicar rampa a la salida
@@ -491,6 +528,47 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     Vector3d F_tot_world = R_Mesa_Auto_ * F_robot;
     Vector3d F_abd_est   = F_tot_world - Vector3d(Fp_tej[0], Fp_tej[1], Fp_tej[2]);
     Vector3d F_abd_off   = F_tot_world - Vector3d(Fp_tej_off[0], Fp_tej_off[1], Fp_tej_off[2]);
+
+
+    ROS_INFO_THROTTLE(0.25, "[DEBUG TEJIDO Z] F_real: %.4f | F_offline: %.4f | F_online: %.4f", F_tissue(2), Fp_tej_off[2], Fp_tej[2]);
+    ROS_INFO_THROTTLE(0.25, "[DEBUG ABDOMEN Z] F_real: %.4f | F_offline: %.4f | F_online: %.4f", F_abdomen(2), F_abd_off(2), F_abd_est(2));
+
+    ROS_INFO_THROTTLE(0.25, "[DEBUG TEJIDO Y] F_real: %.4f | F_offline: %.4f | F_online: %.4f", F_tissue(1), Fp_tej_off[1], Fp_tej[1]);
+    ROS_INFO_THROTTLE(0.25, "[DEBUG ABDOMEN Y] F_real: %.4f | F_offline: %.4f | F_online: %.4f", F_abdomen(1), F_abd_off(1), F_abd_est(1));
+
+
+    // === INICIO DEBUG ERROR DE FULCRO (RCM) ===
+    Eigen::Vector3d p_virt, p_real;
+    bool rcm_ready = false;
+    {
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        p_virt = P_fulcro_virtual_;
+        p_real = P_trocar_real_;
+        rcm_ready = has_fulcrum_ && has_trocar_;
+    }
+
+    if (rcm_ready) {
+        // 1. Proyectar el Fulcro Virtual (de Base Auto a Mundo/Mesa)
+        Eigen::Vector4d p_virt_auto_h;
+        p_virt_auto_h << p_virt, 1.0;
+        Eigen::Vector4d p_virt_mundo = T13_.inverse() * p_virt_auto_h;
+
+        // 2. Proyectar el Trocar Real (de Base Darel a Base Auto, y luego a Mundo/Mesa)
+        Eigen::Vector4d p_real_darel_h;
+        p_real_darel_h << p_real, 1.0;
+        Eigen::Vector4d p_real_auto = T12_ * p_real_darel_h;
+        Eigen::Vector4d p_real_mundo = T13_.inverse() * p_real_auto;
+       
+        // 3. Calcular el error absoluto en el sistema común (Mesa)
+        double error_rcm = (p_real_mundo(2) - p_virt_mundo(2))* 1000.0;
+
+        ROS_INFO_THROTTLE(1, "[RCM MUNDO] Virt( Z:%.4f) | Real( Z:%.4f) | Desfase: %6.2f mm",
+                          p_virt_mundo(2),
+                          p_real_mundo(2),
+                          error_rcm);
+    } else {
+        ROS_INFO_THROTTLE(1.0, "[RCM] Esperando datos de ambos topics en sus respectivos frames...");
+    }
 
     // J. Publicar 
     auto makeMsg = [](double x, double y, double z) {
