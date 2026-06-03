@@ -16,6 +16,7 @@
 #include <array>
 #include <fstream>
 #include <sstream>
+#include <std_msgs/Float64.h>
 
 using Matrix4d  = Eigen::Matrix4d;
 using Vector3d  = Eigen::Vector3d;
@@ -180,6 +181,7 @@ private:
     ros::Publisher pub_abd_real_;     // F_abdomen real tarada
     ros::Publisher pub_tej_off_;      // F_tejido del modelo offline
     ros::Publisher pub_abd_off_;      // F_abdomen del modelo offline
+    ros::Publisher pub_rcm_error_;    // Error de fulcro
 
     // Subscribers 
     ros::Subscriber sub_pose_;

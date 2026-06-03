@@ -1,0 +1,43 @@
+<launch>
+    <arg name="name" default="test_online_piel1"/>
+    <arg name="path" default="/home/labrob/experimentos/online/"/>
+
+    <node name="rosbag_record_online" pkg="rosbag" type="record" output="screen"
+        args="-O $(arg path)$(arg name).bag
+        
+                /tf
+                /tf_static
+                /coordinator/goal_position
+                /coordinator/fulcrum_position
+                /joint_states
+                /rosout
+                
+                /auto/pose_topic
+                /auto/effectorFinal_topic
+                /auto/velocity_topic
+                /auto/effectorFinal_force
+                /auto/robotbase_force
+                /auto/fulcrum
+                /auto/tfg/tissue_force
+
+                /darel/pose_topic
+                /darel/effectorFinal_topic
+                /darel/abdomen_force_topic
+                /darel/abdomen_effectorForce_topic
+
+                /ur3e/rtde/force
+
+                /auto/robot_force_tared
+                /auto/tissue_force_real
+                /auto/abdomen_force_real
+                
+                /auto/tissue_force_estimated
+                /auto/abdomen_force_estimated
+                
+                /auto/tissue_force_offline
+                /auto/abdomen_force_offline
+                
+                /auto/rcm_error
+                "
+    />
+</launch>

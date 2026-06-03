@@ -59,6 +59,7 @@ ForceEstimator::ForceEstimator(ros::NodeHandle& nh, ros::NodeHandle& nh_priv)
     pub_abd_real_   = nh.advertise<std_msgs::Float64MultiArray>("abdomen_force_real",     100);
     pub_tej_off_   = nh.advertise<std_msgs::Float64MultiArray>("tissue_force_offline",      100);
     pub_abd_off_   = nh.advertise<std_msgs::Float64MultiArray>("abdomen_force_offline",     100);
+    pub_rcm_error_ = nh.advertise<std_msgs::Float64>("rcm_error", 100);
 
 
     // Servicios 
@@ -286,7 +287,7 @@ void ForceEstimator::poseCb(const std_msgs::Float64MultiArray::ConstPtr& pose_ms
     // Inversión de signo en Z (igual que en MATLAB)
     F_tissue_raw[2] = -F_tissue_raw[2];
     F_abd_raw_v [2] = -F_abd_raw_v[2];
-    F_robot_raw [2] = -F_robot_raw[2];
+    F_robot_raw [2] = F_robot_raw[2];
 
     // 4. Taraje 
     if (tare_requested_ && !tared_) {
@@ -558,14 +559,20 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
         p_real_darel_h << p_real, 1.0;
         Eigen::Vector4d p_real_auto = T12_ * p_real_darel_h;
         Eigen::Vector4d p_real_mundo = T13_.inverse() * p_real_auto;
+        
+        p_real_mundo(2) += 0.024; //descalibracion z darel
        
         // 3. Calcular el error absoluto en el sistema común (Mesa)
         double error_rcm = (p_real_mundo(2) - p_virt_mundo(2))* 1000.0;
 
-        ROS_INFO_THROTTLE(1, "[RCM MUNDO] Virt( Z:%.4f) | Real( Z:%.4f) | Desfase: %6.2f mm",
+        ROS_INFO_THROTTLE(1.0, "[RCM MUNDO] Virt( Z:%.4f) | Real( Z:%.4f) | Desfase: %6.2f mm",
                           p_virt_mundo(2),
                           p_real_mundo(2),
                           error_rcm);
+
+        std_msgs::Float64 err_msg;
+        err_msg.data = error_rcm;
+        pub_rcm_error_.publish(err_msg);
     } else {
         ROS_INFO_THROTTLE(1.0, "[RCM] Esperando datos de ambos topics en sus respectivos frames...");
     }

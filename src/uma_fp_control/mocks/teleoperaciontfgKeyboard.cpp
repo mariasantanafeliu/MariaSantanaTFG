@@ -64,16 +64,30 @@ int main(int argc, char **argv)
                 tecla_valida = true;
                 break;  
             case '8':
-                msg.x = -0.01415;
-                msg.y = -0.01415;
-                msg.z = -0.01;
+                msg.x = -0.0283;
+                msg.y = -0.0283;
+                msg.z = -0.02;
                 ROS_INFO("\r\n Diagonal -X -Y -Z \r\n");
                 tecla_valida = true;
                 break;
             case '9':
-                msg.x = 0.01415;
-                msg.y = 0.01415;
-                msg.z = 0.01;
+                msg.x = 0.0283;
+                msg.y = 0.0283;
+                msg.z = 0.02;
+                ROS_INFO("\r\n Diagonal -X -Y . Pulsa x para salir\r\n");
+                tecla_valida = true;
+                break;
+            case 'o':
+                msg.x = -0.0354;
+                msg.y = -0.0354;
+                msg.z = -0.02;
+                ROS_INFO("\r\n Diagonal -X -Y -Z \r\n");
+                tecla_valida = true;
+                break;
+            case 'p':
+                msg.x = 0.0354;
+                msg.y = 0.0354;
+                msg.z = 0.02;
                 ROS_INFO("\r\n Diagonal -X -Y . Pulsa x para salir\r\n");
                 tecla_valida = true;
                 break;
