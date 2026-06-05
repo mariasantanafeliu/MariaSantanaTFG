@@ -28,77 +28,77 @@ int main(int argc, char **argv)
         switch (input){
             case '1': 
                 msg.x = paso_medio;
-                ROS_INFO("\r\n X + 5mm \r\n");
+                //ROS_INFO("\r\n X + 5mm \r\n");
                 tecla_valida = true;
                 break;  
             case '2':
                 msg.y = paso_medio;
-                ROS_INFO("\r\n Y + 5mm \r\n");
+                //ROS_INFO("\r\n Y + 5mm \r\n");
                 tecla_valida = true;
                 break; 
             case '3': 
                 msg.z = paso_medio;
-                ROS_INFO("\r\n Z + 5mm \r\n");
+                //ROS_INFO("\r\n Z + 5mm \r\n");
                 tecla_valida = true;
                 break;    
             case '4': 
                 msg.x = -paso_medio;
-                ROS_INFO("\r\n X - 5mm \r\n");
+                //ROS_INFO("\r\n X - 5mm \r\n");
                 tecla_valida = true;
                 break;  
             case '5':
                 msg.y = -paso_medio;
-                ROS_INFO("\r\n Y - 5mm \r\n");
+                //ROS_INFO("\r\n Y - 5mm \r\n");
                 tecla_valida = true;
                 break; 
             case '6': 
                 msg.z = -paso_medio;
-                ROS_INFO("\r\n Z - 5mm \r\n");
+                //ROS_INFO("\r\n Z - 5mm \r\n");
                 tecla_valida = true;
                 break;  
             case '7':
                 msg.x = -0.0318;
                 msg.y = -0.0318;
                 msg.z = -0.01;
-                ROS_INFO("\r\n Diagonal X Y \r\n");
+                //ROS_INFO("\r\n Diagonal X Y \r\n");
                 tecla_valida = true;
                 break;  
             case '8':
                 msg.x = -0.0283;
                 msg.y = -0.0283;
                 msg.z = -0.02;
-                ROS_INFO("\r\n Diagonal -X -Y -Z \r\n");
+                //ROS_INFO("\r\n Diagonal -X -Y -Z \r\n");
                 tecla_valida = true;
                 break;
             case '9':
                 msg.x = 0.0283;
                 msg.y = 0.0283;
                 msg.z = 0.02;
-                ROS_INFO("\r\n Diagonal -X -Y . Pulsa x para salir\r\n");
+                //ROS_INFO("\r\n Diagonal -X -Y . Pulsa x para salir\r\n");
                 tecla_valida = true;
                 break;
             case 'o':
                 msg.x = -0.0354;
                 msg.y = -0.0354;
                 msg.z = -0.02;
-                ROS_INFO("\r\n Diagonal -X -Y -Z \r\n");
+                //ROS_INFO("\r\n Diagonal -X -Y -Z \r\n");
                 tecla_valida = true;
                 break;
             case 'p':
                 msg.x = 0.0354;
                 msg.y = 0.0354;
                 msg.z = 0.02;
-                ROS_INFO("\r\n Diagonal -X -Y . Pulsa x para salir\r\n");
+                //ROS_INFO("\r\n Diagonal -X -Y . Pulsa x para salir\r\n");
                 tecla_valida = true;
                 break;
             case 'b':
                 msg.x = 0.02; 
-                ROS_INFO("\r\n Salto en X y espera \r\n");
+                //ROS_INFO("\r\n Salto en X y espera \r\n");
                 tecla_valida = true;
                 break;
             case 'v':
                 msg.x = -0.04; 
-                ROS_INFO("\r\n Salto en -X y espera \r\n");
+                //ROS_INFO("\r\n Salto en -X y espera \r\n");
                 tecla_valida = true;
                 break;
             case 'c':{
@@ -130,7 +130,7 @@ int main(int argc, char **argv)
                 double T = 10.0;
                 ros::Time start_time = ros::Time::now();
 
-                ROS_INFO("\r\n Movimiento Chirp en X \r\n");
+                //ROS_INFO("\r\n Movimiento Chirp en X \r\n");
 
                 msg.x = -0.02;
                 //msg.y = 0.02;
@@ -150,14 +150,14 @@ int main(int argc, char **argv)
 
                     msg.x = -amp_x * sin(fase);
                     //msg.y = amp_y * sin(fase);
-                    ROS_INFO("\r\n moviendo \r\n");
+                    //ROS_INFO("\r\n moviendo \r\n");
                     pub.publish(msg);
                     ros::Rate(20).sleep();
                 }
 
                 msg.x = 0.01;
                 pub.publish(msg);
-                ROS_INFO("\r\n Chirp terminado \r\n");
+                //ROS_INFO("\r\n Chirp terminado \r\n");
                 tecla_valida = false;
                 break;
 
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
                 double paso_recto = (2.0 * M_PI * radio)/ total_pasos;
                 int i;
 
-                ROS_INFO("\r\n Trayectoria circular XY \r\n");
+                //ROS_INFO("\r\n Trayectoria circular XY \r\n");
                 for (i = 0; i < total_pasos; i++){
                     double angulo = (2.0 * M_PI * i)/ total_pasos;
                     msg.x = -paso_recto * sin(angulo);

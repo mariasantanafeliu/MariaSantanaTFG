@@ -2,12 +2,12 @@
 
 Init::Init()//Constructor
 {
-	ROS_INFO_STREAM("---Init---");
+	//ROS_INFO_STREAM("---Init---");
 }
 
 Init::~Init()
 {
-    ROS_INFO_STREAM("Leaving gently Init...");
+    //ROS_INFO_STREAM("Leaving gently Init...");
 }
 
 void Init::initialize(std::vector<double> punto, std::vector<double> tcp, ur_script * ur)
@@ -17,10 +17,10 @@ void Init::initialize(std::vector<double> punto, std::vector<double> tcp, ur_scr
     ur->set_tcp(tcp);
     ros::Duration(1.5).sleep();
     //ur.set_tcp(tcp);
-    ROS_INFO_STREAM("Guardando la posicion del TCP");
+    //ROS_INFO_STREAM("Guardando la posicion del TCP");
     ros::Duration(0.5).sleep();
     // Movimiento del robot hacia un punto cómodo.
-    ROS_INFO_STREAM("moviendo al NO punto");
+    //ROS_INFO_STREAM("moviendo al NO punto");
     //ur->movej(punto, true);  //COMENTA O DESCOMENTA PARA MOVER O NO
     ros::Duration(0.5).sleep();
     ur->stopl(1); 

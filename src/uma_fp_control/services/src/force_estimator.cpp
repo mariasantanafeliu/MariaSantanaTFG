@@ -39,8 +39,8 @@ ForceEstimator::ForceEstimator(ros::NodeHandle& nh, ros::NodeHandle& nh_priv)
     R_Mesa_Auto_ = T13_.topLeftCorner<3,3>().transpose();
     R_Darel_Mesa_= T23_.topLeftCorner<3,3>();
 
-    ROS_INFO("[ForceEstimator] Matrices de transformacion cargadas.");
-    ROS_INFO_STREAM("T13 =\n" << T13_);
+    //ROS_INFO("[ForceEstimator] Matrices de transformacion cargadas.");
+    //ROS_INFO_STREAM("T13 =\n" << T13_);
 
     // Filtros 
     filt_robot_.init   (B_LP, A_LP, 3);
@@ -60,6 +60,7 @@ ForceEstimator::ForceEstimator(ros::NodeHandle& nh, ros::NodeHandle& nh_priv)
     pub_tej_off_   = nh.advertise<std_msgs::Float64MultiArray>("tissue_force_offline",      100);
     pub_abd_off_   = nh.advertise<std_msgs::Float64MultiArray>("abdomen_force_offline",     100);
     pub_rcm_error_ = nh.advertise<std_msgs::Float64>("rcm_error", 100);
+    pub_deformacion_ = nh.advertise<std_msgs::Float64>("deformacion", 100);
 
 
     // Servicios 
@@ -83,8 +84,10 @@ ForceEstimator::ForceEstimator(ros::NodeHandle& nh, ros::NodeHandle& nh_priv)
     sub_trocar_  = nh.subscribe("/darel/pose_topic", 1, 
                                 &ForceEstimator::trocarCb, this);
 
-    ROS_INFO("[ForceEstimator] Nodo listo. Modo: CALIBRATING");
-    ROS_INFO("[ForceEstimator] Llama a /tare_forces para tarar y luego a /freeze_theta para congelar theta.");
+    delay_samples_ = static_cast<int>(1.75*125.0);
+
+    //ROS_INFO("[ForceEstimator] Nodo listo. Modo: CALIBRATING");
+    //ROS_INFO("[ForceEstimator] Llama a /tare_forces para tarar y luego a /freeze_theta para congelar theta.");
 }
 
 
@@ -94,7 +97,7 @@ Matrix4d ForceEstimator::loadCSV(const std::string& path)
     Matrix4d M = Matrix4d::Identity();
     std::ifstream f(path);
     if (!f.is_open()) {
-        ROS_ERROR_STREAM("[ForceEstimator] No se puede abrir: " << path);
+        //ROS_ERROR_STREAM("[ForceEstimator] No se puede abrir: " << path);
         return M;
     }
     int row = 0;
@@ -227,7 +230,7 @@ bool ForceEstimator::srvTare(std_srvs::Trigger::Request&,
 
     res.success = true;
     res.message = "Taraje iniciado - promediando " + std::to_string(N_TARE_) + " muestras.";
-    ROS_INFO_STREAM("[ForceEstimator] " << res.message);
+    //ROS_INFO_STREAM("[ForceEstimator] " << res.message);
     return true;
 }
 
@@ -239,13 +242,13 @@ bool ForceEstimator::srvFreeze(std_srvs::Trigger::Request&,
     if (!tared_) {
         res.success = false;
         res.message = "ERROR: haz el taraje primero antes de congelar theta.";
-        ROS_WARN_STREAM("[ForceEstimator] " << res.message);
+        //ROS_WARN_STREAM("[ForceEstimator] " << res.message);
         return true;
     }
     mode_ = Mode::FROZEN;
     res.success = true;
     res.message = "Theta congelado. Modo SURGERY activado — RLS desactivado.";
-    ROS_INFO_STREAM("[ForceEstimator] " << res.message);
+    //ROS_INFO_STREAM("[ForceEstimator] " << res.message);
     return true;
 }
 
@@ -257,13 +260,26 @@ void ForceEstimator::poseCb(const std_msgs::Float64MultiArray::ConstPtr& pose_ms
 
     // 1. Extraer posición TCP del world desde T_TTP (column-major, 16 vals) 
     // pose_topic publica T_TTP columna por columna igual que en movimientoTFG.cpp
-    Matrix4d T_TTP;
+    /*Matrix4d T_TTP;
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
             T_TTP(j,i) = pose_msg->data[i*4+j];
 
-    std::vector<double> pos_raw = {T_TTP(0,3), T_TTP(1,3), T_TTP(2,3)};
+    std::vector<double> pos_raw = {T_TTP(0,3), T_TTP(1,3), T_TTP(2,3)};*/
+    //std::vector<double> pos_actual = {pose_msg->data[12], pose_msg->data[13],pose_msg->data[14]};
+    Eigen::Vector3d pos_actual(pose_msg->data[12], pose_msg->data[13], pose_msg->data[14]);
 
+    pos_buffer_.push_back(pos_actual);
+    Eigen::Vector3d pos_delayed;
+
+    if (pos_buffer_.size() > delay_samples_){
+        pos_delayed = pos_buffer_.front();
+        pos_buffer_.pop_front();
+    } else {
+        return;
+    }
+
+    std::vector<double> pos_raw = {pos_delayed(0), pos_delayed(1), pos_delayed(2)};
     // 2. Señales de fuerza
     std::vector<double> F_robot_raw, F_tissue_raw, V_robot_raw;
     Vector3d F_abdomen_raw;
@@ -306,7 +322,7 @@ void ForceEstimator::poseCb(const std_msgs::Float64MultiArray::ConstPtr& pose_ms
             }
             tared_          = true;
             tare_requested_ = false;
-            ROS_INFO("[ForceEstimator] Taraje completado.");
+            //ROS_INFO("[ForceEstimator] Taraje completado.");
         }
         return;   // no procesar hasta completar taraje
     }
@@ -340,13 +356,17 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
                                        const Vector3d& F_abdomen,
                                        const std::vector<double>& V_robot)
 {
+    
+    
+    
     // A. Deformación del tejido (frame mesa = frame world aquí) 
     // Transformar posición al frame mesa
     Eigen::Vector4d pw_h; pw_h << pos_world, 1.0;
     Eigen::Vector4d pm_h = T13_.inverse() * pw_h;
     double Pm_x = pm_h(0), Pm_y = pm_h(1), Pm_z = pm_h(2);
     double dZ_k = Pm_z - Z_sup_;
-    ROS_INFO_THROTTLE(1.0, "Z_auto_recib: %.4f | Z_Robot_Mesa: %.4f | Z_Superficie: %.4f | Deformacion dZ_k: %.4f", pos_world(2), Pm_z, Z_sup_, dZ_k);
+
+    //ROS_INFO_THROTTLE(1.0, "Z_auto_recib: %.4f | Z_Robot_Mesa: %.4f | Z_Superficie: %.4f | Deformacion dZ_k: %.4f", pos_world(2), Pm_z, Z_sup_, dZ_k);
     
     if (dZ_k <= 0.0) {
         // Contacto con tejido
@@ -385,6 +405,8 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
         xk_   = {0,0,0};
         Fk_1_ = {0,0,0}; Fk_2_ = {0,0,0};
     }
+
+
 
     // B. Contador de contacto y rampa 
     if (dZ_k <= 0.0 && en_cont_)
@@ -483,7 +505,10 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     Fp_tej_off[2] = std::min(Fp_tej_off[2], -tol_sat_);*/
 
     //ROS_INFO_THROTTLE(1, "[OFFLINE DEBUG] dz: %4f | Fz_offline: %4f | thZ0: % 4f", dZ_k, Fp_tej_off[2], thZ_off_(0));
-    ROS_INFO_THROTTLE(1, "def real: %.4f | f_off: %.4f", xk_[2], Fp_tej_off[2]);
+    //ROS_INFO_THROTTLE(1, "def real: %.4f | f_off: %.4f", xk_[2], Fp_tej_off[2]);
+    std_msgs::Float64 def_msg;
+    def_msg.data = xk_[2];
+    pub_deformacion_.publish(def_msg);
 
     // H. RLS — Cálculo de lambda dinámica independiente por cada eje
    
@@ -521,8 +546,8 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     Fp_tej_off[1] *= ramp;
     //Fp_tej_off[2] *= ramp;
     
-    ROS_INFO_THROTTLE(1, "[THETAS] OFF_b0: %.4f | ON_b0: %.4f | OFF_a1: %.4f | ON_a1: %.4f ", 
-                        thZ_off_(2), thZ_(2), thZ_off_(0), thZ_(0));
+    //ROS_INFO_THROTTLE(1, "[THETAS] OFF_b0: %.4f | ON_b0: %.4f | OFF_a1: %.4f | ON_a1: %.4f ", 
+                        //thZ_off_(2), thZ_(2), thZ_off_(0), thZ_(0));
 
     // I. Separación de fuerzas 
     // F_total → frame mundo
@@ -531,11 +556,11 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     Vector3d F_abd_off   = F_tot_world - Vector3d(Fp_tej_off[0], Fp_tej_off[1], Fp_tej_off[2]);
 
 
-    ROS_INFO_THROTTLE(0.25, "[DEBUG TEJIDO Z] F_real: %.4f | F_offline: %.4f | F_online: %.4f", F_tissue(2), Fp_tej_off[2], Fp_tej[2]);
-    ROS_INFO_THROTTLE(0.25, "[DEBUG ABDOMEN Z] F_real: %.4f | F_offline: %.4f | F_online: %.4f", F_abdomen(2), F_abd_off(2), F_abd_est(2));
+    //ROS_INFO_THROTTLE(0.25, "[DEBUG TEJIDO Z] F_real: %.4f | F_offline: %.4f | F_online: %.4f", F_tissue(2), Fp_tej_off[2], Fp_tej[2]);
+    //ROS_INFO_THROTTLE(0.25, "[DEBUG ABDOMEN Z] F_real: %.4f | F_offline: %.4f | F_online: %.4f", F_abdomen(2), F_abd_off(2), F_abd_est(2));
 
-    ROS_INFO_THROTTLE(0.25, "[DEBUG TEJIDO Y] F_real: %.4f | F_offline: %.4f | F_online: %.4f", F_tissue(1), Fp_tej_off[1], Fp_tej[1]);
-    ROS_INFO_THROTTLE(0.25, "[DEBUG ABDOMEN Y] F_real: %.4f | F_offline: %.4f | F_online: %.4f", F_abdomen(1), F_abd_off(1), F_abd_est(1));
+    //ROS_INFO_THROTTLE(0.25, "[DEBUG TEJIDO Y] F_real: %.4f | F_offline: %.4f | F_online: %.4f", F_tissue(1), Fp_tej_off[1], Fp_tej[1]);
+    //ROS_INFO_THROTTLE(0.25, "[DEBUG ABDOMEN Y] F_real: %.4f | F_offline: %.4f | F_online: %.4f", F_abdomen(1), F_abd_off(1), F_abd_est(1));
 
 
     // === INICIO DEBUG ERROR DE FULCRO (RCM) ===
@@ -565,16 +590,14 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
         // 3. Calcular el error absoluto en el sistema común (Mesa)
         double error_rcm = (p_real_mundo(2) - p_virt_mundo(2))* 1000.0;
 
-        ROS_INFO_THROTTLE(1.0, "[RCM MUNDO] Virt( Z:%.4f) | Real( Z:%.4f) | Desfase: %6.2f mm",
-                          p_virt_mundo(2),
-                          p_real_mundo(2),
-                          error_rcm);
+        //ROS_INFO_THROTTLE(1.0, "[RCM MUNDO] Virt( Z:%.4f) | Real( Z:%.4f) | Desfase: %6.2f mm",
+                          //p_virt_mundo(2), p_real_mundo(2), error_rcm);
 
         std_msgs::Float64 err_msg;
         err_msg.data = error_rcm;
         pub_rcm_error_.publish(err_msg);
     } else {
-        ROS_INFO_THROTTLE(1.0, "[RCM] Esperando datos de ambos topics en sus respectivos frames...");
+        //ROS_INFO_THROTTLE(1.0, "[RCM] Esperando datos de ambos topics en sus respectivos frames...");
     }
 
     // J. Publicar 

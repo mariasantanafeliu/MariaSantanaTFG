@@ -110,7 +110,7 @@ void hybridControl::cb_vacuumreposo(const std_msgs::Bool::ConstPtr& msg)
 {
     if (!msg->data)
     {
-        ROS_INFO("Vacuum reposo activado");
+        //ROS_INFO("Vacuum reposo activado");
         sendWait = true;
         desPose.x = 0.099;
         desPose.y = 0.442;

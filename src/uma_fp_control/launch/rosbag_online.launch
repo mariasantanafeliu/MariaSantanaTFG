@@ -19,6 +19,7 @@
                 /auto/robotbase_force
                 /auto/fulcrum
                 /auto/tfg/tissue_force
+                
 
                 /darel/pose_topic
                 /darel/effectorFinal_topic
@@ -38,6 +39,7 @@
                 /auto/abdomen_force_offline
                 
                 /auto/rcm_error
+                /auto/deformacion
                 "
     />
 </launch>

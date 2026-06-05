@@ -17,6 +17,7 @@
 #include <fstream>
 #include <sstream>
 #include <std_msgs/Float64.h>
+#include <deque>
 
 using Matrix4d  = Eigen::Matrix4d;
 using Vector3d  = Eigen::Vector3d;
@@ -182,6 +183,7 @@ private:
     ros::Publisher pub_tej_off_;      // F_tejido del modelo offline
     ros::Publisher pub_abd_off_;      // F_abdomen del modelo offline
     ros::Publisher pub_rcm_error_;    // Error de fulcro
+    ros::Publisher pub_deformacion_;    // Deformacion del tejido
 
     // Subscribers 
     ros::Subscriber sub_pose_;
@@ -211,5 +213,8 @@ private:
     // Firmas de los nuevos callbacks
     void fulcrumCb(const std_msgs::Float64MultiArray::ConstPtr& msg);
     void trocarCb(const std_msgs::Float64MultiArray::ConstPtr& msg);
+
+    std::deque<Eigen::Vector3d> pos_buffer_;
+    int delay_samples_;
 
 };
