@@ -422,7 +422,11 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     std::array<double,3> xe;
     xe[0] = xk_[0] * (1.0 + boost_X_gain_ * std::exp(-std::abs(xk_[0]) / boost_X_scale_));
     xe[1] = xk_[1] * (1.0 + boost_Y_gain_ * std::exp(-std::abs(xk_[1]) / boost_Y_scale_));
-    xe[2] = xk_[2];
+    
+    double desp_lat = std::sqrt(xk_[0]*xk_[0] + xk_[1]*xk_[1]);
+
+    double k = 46.67;
+    xe[2] = xk_[2]*(1.0 + k * desp_lat);
     xe[0] *= ramp; xe[1] *= ramp; //xe[2] *= ramp;
 
     // D. Velocidad y trinquete 
@@ -517,11 +521,15 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
     double dy_dt = (xe[1] - xk_1_[1]) * fs;
     double dz_dt = (xe[2] - xk_1_[2]) * fs;
 
+    bool push_z = (dz_dt < -1e-4);
+    bool mov_x = (std::abs(dx_dt) > 1e-4) && (xk_[0]*dx_dt > 0);
+    bool mov_y = (std::abs(dy_dt) > 1e-4) && (xk_[1]*dy_dt > 0);
+
     // Si el eje se mueve (umbral de velocidad), permitimos que el RLS aprenda (lambda_rls).
     // Si el eje está estático, congelamos ese eje concreto (lambda = 1.0) para evitar que el ruido degrade theta.
-    double lambda_X = (std::abs(dx_dt) > 1e-4) ? lambda_rls_ : 1.0;
-    double lambda_Y = (std::abs(dy_dt) > 1e-4) ? lambda_rls_ : 1.0;
-    double lambda_Z = (std::abs(dz_dt) > 1e-4) ? lambda_rls_ : 1.0;
+    double lambda_X = mov_x ? lambda_rls_ : 1.0;
+    double lambda_Y = mov_y ? lambda_rls_ : 1.0;
+    double lambda_Z = push_z ? lambda_rls_ : 1.0;
 
     if (mode_ == Mode::CALIBRATING &&
         std::abs(xk_[2]) > 0.0001 &&
@@ -530,11 +538,15 @@ void ForceEstimator::processOneSample(const Vector3d& pos_world,
         double eX = F_tissue(0) - Fp_tej[0];
         double eY = F_tissue(1) - Fp_tej[1];
         double eZ = F_tissue(2) - Fp_tej[2];
+
+        if (mov_x) rlsUpdate(thX_, PX_, phX, eX, lambda_X);
+        if (mov_y) rlsUpdate(thY_, PY_, phY, eY, lambda_Y);
+        if (push_z) rlsUpdate(thZ_, PZ_, phZ, eZ, lambda_Z);
        
         // Cada eje actualiza con su propia lambda de movimiento
-        rlsUpdate(thX_, PX_, phX, eX, lambda_X);
+        /*rlsUpdate(thX_, PX_, phX, eX, lambda_X);
         rlsUpdate(thY_, PY_, phY, eY, lambda_Y);
-        rlsUpdate(thZ_, PZ_, phZ, eZ, lambda_Z);
+        rlsUpdate(thZ_, PZ_, phZ, eZ, lambda_Z);*/
     }
 
     // Aplicar rampa a la salida
