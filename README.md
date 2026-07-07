@@ -29,6 +29,10 @@ El problema de partida es que, durante una maniobra laparoscópica, la fuerza me
 
 El objetivo del trabajo es utilizar modelos dinámicos identificados offline y trasladarlos a una implementación online integrada en ROS. El estimador calcula la fuerza de tejido a partir de la deformación efectiva y obtiene la contribución abdominal a partir de la fuerza total medida y la fuerza estimada de tejido.
 
+> [!NOTE]
+> El contenido de este repositorio corresponde a la parte software utilizada específicamente en este TFG.  
+> No representa el entorno completo de desarrollo del laboratorio, sino los paquetes y archivos necesarios para reproducir la adquisición, el registro de ensayos y la estimación online descritos en la memoria.
+
 ---
 
 ## 2. Estructura del paquete
